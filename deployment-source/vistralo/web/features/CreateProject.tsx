@@ -26,6 +26,8 @@ interface Props {
   onCreated: (project: Project) => void;
   onClose: () => void;
   notify: (message: string, error?: boolean) => void;
+  /** Opened on a recording handed over by the Chrome extension, and the page it was made on. */
+  imported?: { url: string } | null;
 }
 
 export function CreateProject({
@@ -35,11 +37,12 @@ export function CreateProject({
   onCreated,
   onClose,
   notify,
+  imported = null,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null),
     mounted = useRef(true);
   const [name, setName] = useState(""),
-    [url, setUrl] = useState(""),
+    [url, setUrl] = useState(imported?.url ?? ""),
     [file, setFile] = useState<File | null>(null);
   const [narrate, setNarrate] = useState(false),
     [voiceover, setVoiceover] = useState(true);
@@ -145,7 +148,8 @@ export function CreateProject({
             spokenTake.current = saved.microphone;
             setRecording("staged");
             setRecoverySaved(true);
-            setLeftOver(new Date(saved.file.lastModified));
+            // A recording just handed over by the extension is not one left over from an earlier visit.
+            if (!imported) setLeftOver(new Date(saved.file.lastModified));
           }
           return !!saved;
         })
