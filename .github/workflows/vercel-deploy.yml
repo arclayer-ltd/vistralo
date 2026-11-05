@@ -1,0 +1,36 @@
+name: Vercel deploy
+
+# Vercel Hobby cannot deploy org-owned private repos through its Git link, so CI does it.
+# Vercel builds remotely, which keeps sensitive env vars out of this runner.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deployment-source/vistralo/**"
+      - ".github/workflows/vercel-deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERCEL_ORG_ID: team_bvT8X7lXL77yyuKwaCbBCqNf
+      VERCEL_PROJECT_ID: prj_uRxrIPWlqOhNSGFHuv91MLlSRZXc
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Hobby blocks a deployment unless the commit author is the account owner
+      # (dev@arclayer.co), and a blocked deployment waits forever, so fail instead.
+      - name: Deploy
+        timeout-minutes: 20
+        run: npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN"
