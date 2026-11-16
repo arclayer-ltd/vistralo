@@ -23,9 +23,9 @@ Sign-in is by email and password through Supabase Auth, which stores a hash of t
 
 A share link contains a random 256-bit token. Vistralo stores only a SHA-256 hash of it, so a link cannot be recovered from the database. Every link expires, after 1, 7 or 30 days as you choose, and you can revoke one at any time. Moving a project to Trash revokes its links. The page a link opens loads no scripts and sets no cookies.
 
-## Your OpenAI and HeyGen keys
+## Your OpenAI key
 
-Your browser encrypts each key with the worker's public key (RSA-OAEP with SHA-256) before sending it. The database holds only the result, and the web app has no permission to read that column back. The private key exists only on the worker's server. `{{HOW_THE_WORKER'S_PRIVATE_KEY_IS_STORED, BACKED UP AND ROTATED}}`
+Your browser encrypts the key with the worker's public key (RSA-OAEP with SHA-256) before sending it. The database holds only the result, and the web app has no permission to read that column back. The private key exists only on the worker's server. `{{HOW_THE_WORKER'S_PRIVATE_KEY_IS_STORED, BACKED UP AND ROTATED}}`
 
 ## In transit and at rest
 

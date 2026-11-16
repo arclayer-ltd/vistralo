@@ -54,7 +54,7 @@ Left out of this round:
 | Vistralo vs Loom | Vistralo vs Loom: a Loom alternative with AI voiceover | Loom records and shares. Vistralo records, then writes and speaks an explanation of every screen. A comparison that includes what Loom does better. | Vistralo and Loom compared |
 | Vistralo vs Arcade | Vistralo vs Arcade: narrated video or click-through demo | Arcade builds interactive demos people click through. Vistralo makes narrated videos people watch. What each is for, and what Arcade does better. | Vistralo and Arcade compared |
 | Vistralo vs Supademo | Vistralo vs Supademo: narrated video or guided demo | Supademo turns clicks into step-by-step demos. Vistralo turns a recording into a narrated video. What each is for, and what Supademo does better. | Vistralo and Supademo compared |
-| Security | Security at Vistralo: storage, keys and access | Where Vistralo keeps recordings, how your OpenAI and HeyGen keys are sealed in the browser, who can open a share link, and how to report a problem. | Security |
+| Security | Security at Vistralo: storage, keys and access | Where Vistralo keeps recordings, how your OpenAI key is sealed in the browser, who can open a share link, and how to report a problem. | Security |
 | Contact | Contact Vistralo | Email the Vistralo team about the product, your account, a bug, a security report or a copyright complaint. One address, read by a person. | Contact |
 | Changelog | Vistralo changelog: what changed and when | Every notable change to Vistralo, newest first, written from the merged pull requests. | Changelog |
 | Help centre | Vistralo help centre | How to record, narrate, edit and share with Vistralo, and what to do when a recording, a job or a share link does not behave. | Help |
@@ -67,7 +67,7 @@ These are constraints on the copy, taken from `PRODUCT.md`.
 | --- | --- | --- |
 | All | Customers, logos, testimonials, usage numbers, awards | None exist |
 | All | "Compliant", "certified", SOC 2, GDPR-ready | Legal notices are unapproved drafts and nothing has been audited |
-| Home, AI walkthroughs, Pricing | That narration is included on Free, or that it ever will be | Only Pro and Studio include it; Free brings its own OpenAI and HeyGen keys |
+| Home, AI walkthroughs, Pricing | That narration is included on Free, or that it ever will be | Only Pro and Studio include it; Free brings its own OpenAI key |
 | Pricing | That plan names, limits or prices are final | They are placeholders awaiting the owner's confirmation; the page says so until confirmed |
 | Website visual briefs | That it works on any site | Public pages only, and a claim about a library is "likely" unless the page's code proved it |
 | Narrate screenshots, use cases | Mobile recording, a browser extension, a desktop app | Web app only |
@@ -82,7 +82,7 @@ Every page links to Pricing and to the app from the header. Beyond that, each pa
 | --- | --- |
 | Home | The three product pages; the four use cases; Pricing; Vistralo vs Loom; Security |
 | Pricing | Help: plans and billing; Security; Contact |
-| AI walkthroughs | Narrate screenshots; Engineering handoff; Product demos; Help: how the script is written; Help: adding your own OpenAI and HeyGen keys; Vistralo vs Loom |
+| AI walkthroughs | Narrate screenshots; Engineering handoff; Product demos; Help: how the script is written; Help: adding your own OpenAI key; Vistralo vs Loom |
 | Narrate screenshots | AI walkthroughs; Customer support; Design review; Help: narrate screenshots |
 | Website visual briefs | Design review; Help: analyse a website; Help: what "public pages only" means |
 | Design review | Website visual briefs; AI walkthroughs; Vistralo vs Loom |
@@ -90,7 +90,7 @@ Every page links to Pricing and to the app from the header. Beyond that, each pa
 | Product demos | AI walkthroughs; Vistralo vs Arcade; Vistralo vs Supademo |
 | Customer support | Narrate screenshots; Help: share links and expiry; Help: who can see what |
 | Each comparison | The other two comparisons; the product page closest to the difference it describes; Pricing |
-| Security | Help: adding your own OpenAI and HeyGen keys; Help: who can see what; Contact |
+| Security | Help: adding your own OpenAI key; Help: who can see what; Contact |
 | Changelog | The product page for whatever changed |
 | Help centre | Every article; Contact |
 
@@ -106,7 +106,7 @@ Each help article takes its title from the way a person would ask the question.
 | Your voice or an AI voice | AI voice or my own voice for a screen recording |
 | The 1 GB browser limit | screen recording stops at 1 GB in the browser |
 | Narrate screenshots | how to make a video from screenshots with narration |
-| Adding your own OpenAI and HeyGen keys | use my own OpenAI key for narration |
+| Adding your own OpenAI key | use my own OpenAI key for narration |
 | Share links and expiry | how long does a Vistralo share link last |
 | Stuck on "Restoring your session" | Vistralo stuck on restoring your session |
 | Screen sharing was not allowed | screen sharing permission denied in Chrome |

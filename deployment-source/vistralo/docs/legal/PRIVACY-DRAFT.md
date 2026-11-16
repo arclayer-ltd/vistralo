@@ -17,7 +17,7 @@ Sign-in uses Supabase Auth with an email address and password; the app keeps the
 | Deliver recording, upload, editing, rendering and downloads | Customer content and project/job records | `{{BASIS_AND_CONTROLLER_PROCESSOR_ROLE}}` | `{{PROJECT_RETENTION}}` |
 | Authenticate and protect the service | Account email, sign-in session, access attempts and operational logs | `{{BASIS}}` | `{{SESSION_AND_LOG_RETENTION}}` |
 | Perform optional approved AI analysis | Selected frames and evidence sent to OpenAI | `{{BASIS}}` | `{{PROVIDER_RETENTION}}` |
-| Perform optional approved voice generation | Approved script sent to HeyGen | `{{BASIS}}` | `{{PROVIDER_RETENTION}}` |
+| Perform optional approved voice generation | Approved script sent to OpenAI text-to-speech | `{{BASIS}}` | `{{PROVIDER_RETENTION}}` |
 | Respond to support/privacy requests | Contact details and request records | `{{BASIS}}` | `{{SUPPORT_RETENTION}}` |
 | Sell and manage paid plans (when switched on) | Account email and ID passed to Paddle at checkout; Paddle customer and subscription IDs, plan, status and billing dates stored by Vistralo. Card and billing details are held by Paddle, not Vistralo | `{{BASIS}}` | `{{BILLING_RECORD_RETENTION}}` |
 
@@ -25,7 +25,7 @@ Provider calls run only for the owner's own jobs, within the per-job cost cap se
 
 ## Recipients and transfers
 
-Hosting and backups: Vercel (app and website), Supabase (accounts, database, storage) and the worker's server host; countries and backup locations `{{HOST_AND_BACKUP_SUBPROCESSORS_COUNTRIES}}`. Optional OpenAI and HeyGen processing occurs only when approved: `{{PROVIDER_ENTITIES_LOCATIONS_TRANSFER_SAFEGUARDS}}`. Paddle (payments, as merchant of record) receives the account email and ID at checkout and is a controller of the payment data it collects: `{{PADDLE_ENTITY_ROLE_AND_TRANSFER_SAFEGUARDS}}`. Add any support, email, telemetry or marketing vendors actually used. If EEA/UK data moves abroad, state the applicable adequacy decision or transfer mechanism and how users can obtain it. List `{{EU_REPRESENTATIVE_IF_REQUIRED}}`, `{{UK_REPRESENTATIVE_IF_REQUIRED}}` and `{{DPO_IF_REQUIRED}}` where applicable.
+Hosting and backups: Vercel (app and website), Supabase (accounts, database, storage) and the worker's server host; countries and backup locations `{{HOST_AND_BACKUP_SUBPROCESSORS_COUNTRIES}}`. Optional OpenAI processing occurs only when approved: `{{PROVIDER_ENTITIES_LOCATIONS_TRANSFER_SAFEGUARDS}}`. Paddle (payments, as merchant of record) receives the account email and ID at checkout and is a controller of the payment data it collects: `{{PADDLE_ENTITY_ROLE_AND_TRANSFER_SAFEGUARDS}}`. Add any support, email, telemetry or marketing vendors actually used. If EEA/UK data moves abroad, state the applicable adequacy decision or transfer mechanism and how users can obtain it. List `{{EU_REPRESENTATIVE_IF_REQUIRED}}`, `{{UK_REPRESENTATIVE_IF_REQUIRED}}` and `{{DPO_IF_REQUIRED}}` where applicable.
 
 ## Retention, protection and requests
 

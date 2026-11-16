@@ -365,7 +365,9 @@ export class CloudAdapter implements WorkspaceAdapter {
       if(kind==='website')await this.guard('jobs');
       if(kind==='render'&&args.action!=='render'&&args.action!=='remux')throw Error('Only trim rendering and MP4 previews are supported in this cloud workspace.');
       if(kind==='render'&&args.action==='remux'&&!row.document.video)throw Error('Upload a source video before creating an MP4 preview.');
-      const payload=kind==='website'?{url:args.url,viewports:args.viewports,narrate:args.narrate===true}:args.action==='remux'?{mode:'preview'}:{plan:row.document.data.editPlan};
+      // A retry sends only the URL; it keeps the viewports and the narration choice of the project's last capture.
+      const last=kind==='website'&&!Array.isArray(args.viewports)?unwrap(await required().from('vistralo_jobs').select('payload').eq('project_id',args.id).eq('kind','website').order('created_at',{ascending:false}).limit(1))[0]?.payload:null;
+      const payload=kind==='website'?{url:args.url,viewports:Array.isArray(args.viewports)?args.viewports:last?.viewports,narrate:typeof args.narrate==='boolean'?args.narrate===true:last?.narrate===true}:args.action==='remux'?{mode:'preview'}:{plan:row.document.data.editPlan};
       const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind,payload}).select().single());
       await this.save(args.id,p=>({...p,status:'queued',error:undefined}));return job as T;
     }
@@ -376,9 +378,9 @@ export class CloudAdapter implements WorkspaceAdapter {
     }
     if(method==='providerSettings'){
       const account=await cloudAccount();
-      const rows=unwrap(await required().from('vistralo_provider_settings').select('voice_id,cost_cap_usd,openai_configured,heygen_configured').eq('owner_id',account.user_id));
+      const rows=unwrap(await required().from('vistralo_provider_settings').select('voice_id,cost_cap_usd,openai_configured').eq('owner_id',account.user_id));
       const row:any=rows[0]||{};
-      return {openai:!!row.openai_configured,heygen:!!row.heygen_configured,voiceId:row.voice_id||'',cap:Number(row.cost_cap_usd??1),workerKey:!!await this.workerKey(),included:await aiIncluded(account.role)} as T;
+      return {openai:!!row.openai_configured,voiceId:row.voice_id||'',cap:Number(row.cost_cap_usd??1),workerKey:!!await this.workerKey(),included:await aiIncluded(account.role)} as T;
     }
     if(method==='providerSave'){
       const account=await cloudAccount();
@@ -388,7 +390,8 @@ export class CloudAdapter implements WorkspaceAdapter {
       const seal=async(value:unknown)=>typeof value==='string'&&value.trim()?await this.seal(value.trim()):'';
       unwrap(await required().rpc('vistralo_save_provider_settings',{
         p_openai:await seal(args.openai),
-        p_heygen:await seal(args.heygen),
+        // Speech moved to OpenAI; the old HeyGen column is left as it is and no longer read.
+        p_heygen:'',
         p_voice:String(args.voiceId||''),
         p_cap:cap,
       }));

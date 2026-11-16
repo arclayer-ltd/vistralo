@@ -218,61 +218,6 @@ export function EditorTab({
           Save and render
         </Button>
       </div>
-      <details className="trim-transcript">
-        <summary>Cut from a timed transcript</summary>
-        <p className="flow-caption flow-muted">
-          A JSON list of words, or an object with a <code>words</code> list. Each word needs
-          <code>text</code>, <code>start</code> and <code>end</code> in seconds. The parts it
-          proposes appear above for you to check before rendering. Up to 2 MB.
-        </p>
-        <input
-          className="field"
-          type="file"
-          accept=".json,application/json"
-          disabled={processing || !source || !duration}
-          aria-label="Import transcript JSON"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (!file) return;
-            void action(
-              "Importing transcript",
-              async () => {
-                if (file.size > 2_000_000)
-                  throw new Error("Transcript must be under 2 MB.");
-                const parsed = JSON.parse(await file.text()),
-                  words = Array.isArray(parsed) ? parsed : parsed.words;
-                if (
-                  !Array.isArray(words) ||
-                  !words.length ||
-                  words.length > 50000 ||
-                  words.some(
-                    (word) =>
-                      !word ||
-                      typeof word.text !== "string" ||
-                      !Number.isFinite(word.start) ||
-                      !Number.isFinite(word.end) ||
-                      word.start < 0 ||
-                      word.end <= word.start ||
-                      (duration && word.end > duration + 0.001),
-                  )
-                )
-                  throw new Error(
-                    "Every transcript word needs text and valid start/end seconds within the source duration.",
-                  );
-                await adapter.rpc("transcript", {
-                  id: project.id,
-                  source,
-                  words,
-                });
-                dirtyPlan.current = false;
-                setPlanDirty(false);
-              },
-              "Transcript imported. Review the proposed trim plan before rendering.",
-            );
-          }}
-        />
-      </details>
     </div>
   );
 }

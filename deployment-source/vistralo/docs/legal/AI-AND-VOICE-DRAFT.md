@@ -2,11 +2,11 @@
 
 Operator Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`
 
-**Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft describing what the code does on 13 October 2026. It is not legal advice. Every statement about what OpenAI or HeyGen do with data must be checked against their current terms before publication; this draft makes none.
+**Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft describing what the code does on 13 October 2026. It is not legal advice. Every statement about what OpenAI does with data must be checked against their current terms before publication; this draft makes none.
 
 ## In one paragraph
 
-Vistralo's narration is written by an OpenAI model and spoken by a HeyGen voice. On Pro and Studio they run on Vistralo's own accounts with those companies, unless you have saved your own keys. On Free they run on API keys from your own accounts. Nothing is sent to either of them until you start a job that needs it. Talk-throughs recorded with your own voice, trimming, and plain uploads never go to an AI provider.
+Vistralo's narration is written by an OpenAI model and spoken by an OpenAI voice. On Pro and Studio it runs on Vistralo's own OpenAI account, unless you have saved your own key. On Free it runs on an API key from your own OpenAI account. Nothing is sent to OpenAI until you start a job that needs it. Talk-throughs recorded with your own voice, trimming, and plain uploads never go to an AI provider.
 
 ## What is sent to OpenAI, and when
 
@@ -23,25 +23,25 @@ The audio of your recording is not sent to OpenAI. `{{CONFIRM}}` The request ask
 
 The model is `{{MODEL_NAMES_IN_PRODUCTION}}`. If that model refuses the request or is rate limited, the worker tries a second and then a third model.
 
-## What is sent to HeyGen, and when
+## What is sent for the voice, and when
 
-The script, as text, one spoken line at a time. No pictures and none of your recording. For a website project the script is sent only after you have read and approved it. For a recording, the walkthrough is made in one step: the script is written and voiced without a pause for review, and you can edit it and make the voice-over again afterwards. `{{CONFIRM_THE_APPROVAL_STEP_FOR_EACH_FLOW_AS_SHIPPED}}`
+The script is sent to OpenAI's speech service as text, one spoken line at a time. No pictures and none of your recording. For a website project the script is sent only after you have read and approved it. For a recording, the walkthrough is made in one step: the script is written and voiced without a pause for review, and you can edit it and make the voice-over again afterwards. `{{CONFIRM_THE_APPROVAL_STEP_FOR_EACH_FLOW_AS_SHIPPED}}`
 
-HeyGen returns audio, which is stored with your project. What HeyGen retains is governed by your agreement with HeyGen: `{{LINK_AND_SUMMARY_AFTER_CHECKING_HEYGEN'S_CURRENT_TERMS}}`.
+OpenAI returns audio, which is stored with your project. What OpenAI retains from speech requests is governed by your agreement with OpenAI: `{{LINK_AND_SUMMARY_AFTER_CHECKING_OPENAI'S_CURRENT_SPEECH_TERMS}}`. The voice is synthetic, and `{{WHETHER_AND_HOW_VISTRALO_DISCLOSES_TO_LISTENERS_THAT_THE_VOICE_IS_AI}}`.
 
 ## Voices
 
-The default voice is `{{DEFAULT_VOICE_NAME_AND_WHOSE_IT_IS}}`. You can enter a different HeyGen voice ID in Settings. Only use a voice you have the right to use. A voice that imitates a real person needs that person's agreement, and the Acceptable Use Policy forbids using one without it. `{{WHETHER_THE_DEFAULT_VOICE_IS_A_CLONE_OF_A_REAL_PERSON_AND_THE_CONSENT_HELD}}`
+The default voice is OpenAI's built-in voice "cedar". You can choose another of OpenAI's built-in voices in Settings. These are synthetic voices supplied by OpenAI, not clones of anyone, and Vistralo offers no way to clone or upload a voice.
 
 ## Your keys
 
-You enter your OpenAI and HeyGen keys in Settings. Your browser encrypts each key before it leaves your computer, using a public key published by the worker (RSA-OAEP with SHA-256). The database stores only the encrypted form, which the web app cannot read back. Only the worker holds the private key that can open it, and it does so when it runs your job.
+You enter your OpenAI key in Settings. Your browser encrypts the key before it leaves your computer, using a public key published by the worker (RSA-OAEP with SHA-256). The database stores only the encrypted form, which the web app cannot read back. Only the worker holds the private key that can open it, and it does so when it runs your job.
 
 To stop Vistralo using a key, replace it in Settings or revoke it in the provider's own dashboard. Revoking it at the provider is the only way to be certain. `{{WHETHER_A_STORED_KEY_CAN_BE_DELETED_FROM_SETTINGS}}`
 
 ## Cost
 
-When your own keys are used, OpenAI and HeyGen bill you directly, and the cost limit you set in Settings is checked against Vistralo's own estimate before a provider is called; it cannot guarantee what the provider charges. When the included keys are used, Vistralo pays the providers and applies its own limit per job, which your setting can lower but not raise. A request that fails without a clear answer is not sent again automatically, so that you are not charged twice for one job.
+When your own key is used, OpenAI bills you directly, and the cost limit you set in Settings is checked against Vistralo's own estimate for the whole job before OpenAI is called; it cannot guarantee what the provider charges. When the included keys are used, Vistralo pays the providers and applies its own limit per job, which your setting can lower but not raise. A request that fails without a clear answer is not sent again automatically, so that you are not charged twice for one job.
 
 ## What the AI gets wrong
 
@@ -62,7 +62,7 @@ A narrated walkthrough is spoken by a synthetic voice. The page a share link ope
 ## Facts to check before publishing
 
 1. Read `src/providers.cjs` and `scripts/local-admin-worker.cjs` again on the day of publication and correct anything above that has changed, especially which frames are sent and whether audio ever is.
-2. The included keys are used only for the plans marked `aiIncluded` in `web/billing/plans.json` (Pro and Studio) and the owner's account, and a customer's own saved keys always come first (`src/included-ai.cjs`). The worker no longer reads `OPENAI_API_KEY` or `HEYGEN_API_KEY`; its included keys are `VISTRALO_INCLUDED_*`.
+2. The included keys are used only for the plans marked `aiIncluded` in `web/billing/plans.json` (Pro and Studio) and the owner's account, and a customer's own saved keys always come first (`src/included-ai.cjs`). The worker no longer reads `OPENAI_API_KEY`; its included key is `VISTRALO_INCLUDED_OPENAI_API_KEY`. HeyGen was removed in November 2026.
 3. The default voice's ownership and consent.
 4. Both providers' current API data terms, linked and summarised in their own words with the date checked.
 5. The working copies the worker keeps on its server: where, and for how long. `{{WORKER_WORKING_COPY_RETENTION}}`

@@ -400,25 +400,6 @@ main:has(> .project-detail) {
 .trim-actions-gap {
   flex: 1;
 }
-.trim-transcript {
-  padding-block-start: var(--space-2);
-  color: var(--fg-2);
-}
-.trim-transcript summary {
-  inline-size: fit-content;
-  color: var(--fg-1);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-.trim-transcript[open] > :not(summary) {
-  margin-block-start: var(--space-3);
-}
-.trim-transcript p {
-  max-inline-size: var(--brief-measure);
-}
-.trim-transcript code {
-  font-family: var(--font-mono);
-}
 @media (max-width: 767px) {
   .trim-parts fieldset {
     grid-template-columns: minmax(0, 1fr) auto;
