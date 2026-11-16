@@ -38,12 +38,14 @@ export const libraryLabels = (locale: string) =>
 export function useLibrary({
   projects,
   view,
+  folder = "",
   adapter,
   locale,
   onShortcuts,
 }: {
   projects: Project[];
   view: string;
+  folder?: string;
   adapter: WorkspaceAdapter;
   locale: string;
   onShortcuts: () => void;
@@ -74,9 +76,11 @@ export function useLibrary({
       projects.filter((p) =>
         view === "trash"
           ? p.trashed
-          : !p.trashed && (view !== "shared" || p.access === "workspace"),
+          : view === "folder"
+            ? !p.trashed && (p.folder || "").trim() === folder
+            : !p.trashed && (view !== "shared" || p.access === "workspace"),
       ),
-    [projects, view],
+    [projects, view, folder],
   );
   const filtered = useMemo(() => {
     const needle = query.toLowerCase();

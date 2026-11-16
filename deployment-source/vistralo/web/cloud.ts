@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { WorkspaceAdapter, Project, ProjectChunk, ProjectDetail, CreateProjectInput, ProjectPatch, UploadOptions, WorkspaceSettings, ShareLink } from './contracts';
 import { uuid } from './id';
 import { walkthroughScriptEdit } from './features/flow-utils';
+import { filesToCopy, projectPrefix, remapPaths } from './features/duplicate';
 import { abortIfNeeded, checksum } from './checksum';
 import { posterFrame } from './poster';
 import { billingConfig } from './billing/config';
@@ -239,7 +240,29 @@ export class CloudAdapter implements WorkspaceAdapter {
   async create(input:CreateProjectInput){const account=await cloudAccount();await this.guard('projects');const id=uuid();const p:Project={id,name:input.name,type:input.type||(input.source==='web'?'brief':'walkthrough'),source:input.source,url:input.url,status:'draft',access:'private',created:now(),updated:now(),eventAt:now(),eventLabel:'Updated',data:{files:{}}};await this.limited('projects',await required().from('vistralo_projects').insert({id,owner_id:account.user_id,document:p}));return p;}
   private async save(id:string,mutate:(p:Project)=>Project){const row=await this.row(id);const p=mutate(row.document);p.updated=now();const saved=unwrap(await required().from('vistralo_projects').update({document:p,updated_at:p.updated}).eq('id',id).eq('updated_at',row.updated_at).select('id'));if(!saved.length)throw Error('This project changed in another session. Refresh and try again.');return this.sign(p);}
   async update(id:string,patch:ProjectPatch){if(patch.access&&patch.access!=='private')throw Error('Use a read-only share link to grant access.');return this.save(id,p=>({...p,...patch,eventLabel:patch.lastOpened?'Updated':'Edited',eventAt:patch.lastOpened?p.eventAt:now()}));}
-  async duplicate(id:string){const original=await this.row(id);if(Object.keys(original.document.data.files||{}).length)throw Error('Duplicate a media project by uploading its source into a new project. Originals stay private.');const next=await this.create({...original.document,name:original.document.name+' (copy)'});return this.save(next.id,p=>({...p,data:structuredClone(original.document.data)}));}
+  // The copy gets its own files: each object is copied inside storage into the new project's folder
+  // (nothing passes through the browser), and every stored path is rewritten to point there.
+  // If any step fails, the copied objects and the new project are removed again.
+  async duplicate(id:string){
+    const original=await this.row(id);const doc=original.document;
+    if(['uploading','queued','processing'].includes(doc.status))throw Error('Wait for this project to finish uploading or processing, then duplicate it.');
+    if(doc.trashed)throw Error('Restore this project before duplicating it.');
+    const next=await this.create({name:(doc.name+' (copy)').slice(0,120),source:doc.source,type:doc.type,url:doc.url});
+    const from=projectPrefix(original.owner_id,id),to=projectPrefix(original.owner_id,next.id);
+    const copied:string[]=[];
+    try{
+      for(const file of filesToCopy(doc.data.files,ownPoster(doc)?doc.thumbnail:undefined,from)){
+        const target=to+file.slice(from.length);
+        unwrap(await required().storage.from('vistralo-media').copy(file,target));copied.push(target);
+      }
+      return await this.save(next.id,p=>({...remapPaths({...doc,data:structuredClone(doc.data)},from,to),id:next.id,name:p.name,created:p.created,access:'private',collaborators:undefined,pinned:false,lastOpened:undefined,trashed:false,trashedAt:undefined,progress:undefined,error:doc.status==='failed'?doc.error:undefined,eventLabel:'Updated',eventAt:now()}));
+    }catch(error){
+      if(copied.length)await required().storage.from('vistralo-media').remove(copied).catch(()=>{});
+      await this.save(next.id,p=>({...p,trashed:true,trashedAt:now()})).catch(()=>{});
+      await required().from('vistralo_projects').delete().eq('id',next.id).then(()=>{},()=>{});
+      throw Error('The project could not be duplicated: '+((error as Error).message||'storage copy failed')+'. Nothing was changed.');
+    }
+  }
   async trash(ids:string[]){for(const id of ids){await this.save(id,p=>({...p,trashed:true,trashedAt:now()}));unwrap(await required().from('vistralo_shares').update({revoked:true}).eq('project_id',id));}}
   async restore(ids:string[]){await this.guard('projects');this.billing=null;for(const id of ids)await this.save(id,p=>({...p,trashed:false,trashedAt:undefined}));}
   async remove(ids:string[]){for(const id of ids){const row=await this.row(id);if(!row.document.trashed)throw Error('Move the project to Trash first.');const files=[...new Set([...Object.keys(row.document.data.files||{}),...(ownPoster({...row.document,id})?[row.document.thumbnail!]:[])])];if(files.length)unwrap(await required().storage.from('vistralo-media').remove(files));unwrap(await required().from('vistralo_projects').delete().eq('id',id));}}

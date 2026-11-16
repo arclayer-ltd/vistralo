@@ -17,7 +17,9 @@ import {
 } from "./billing/Billing";
 import { AI_FLOWS, limitReached } from "./billing/plans";
 import { AppModal } from "./app/AppModal";
-import { DeleteProjectsDialog, EditProjectsDialog } from "./app/ProjectDialogs";
+import { DeleteProjectsDialog, EditProjectsDialog, moveToFolder } from "./app/ProjectDialogs";
+import { folderFromRoute, folderList, inFolder } from "./features/folders";
+import { confirmDialog } from "./components/Primitives";
 import { counted, projectActions, type Undo } from "./app/projectActions";
 import { Rail } from "./app/Rail";
 import { RecordControl, rememberRecordFlow, storedRecordFlow } from "./app/RecordControl";
@@ -247,7 +249,29 @@ export default function App() {
       />
     );
   const current = opened.project,
-    view = path[0] || "projects";
+    view = path[0] || "projects",
+    folder = folderFromRoute(path),
+    folders = folderList(projects);
+  async function removeFolder(name: string) {
+    const items = inFolder(projects, name);
+    if (
+      !(await confirmDialog({
+        title: `Remove the folder “${name}”?`,
+        message: `${items.length === 1 ? "The project in it stays" : `The ${items.length} projects in it stay`} in your workspace, outside any folder. Nothing is deleted.`,
+        confirmLabel: "Remove folder",
+        cancelLabel: "Keep folder",
+      }))
+    )
+      return;
+    try {
+      await moveToFolder(adapter, items, "");
+      notify(`Folder “${name}” removed`);
+      await refresh();
+      go("projects");
+    } catch (failure) {
+      notify((failure as Error).message, true);
+    }
+  }
   return (
     <div
       className={`app-shell ${collapsed ? "rail-collapsed" : ""} ${drawer ? "drawer-open" : ""}`}
@@ -280,6 +304,8 @@ export default function App() {
         locale={locale}
         projects={projects}
         view={view}
+        folder={folder}
+        folders={folders}
         profile={profile}
         billing={billing}
         mobileNavigation={mobileNavigation}
@@ -397,7 +423,14 @@ export default function App() {
           ) : (
             <Projects
               projects={projects}
-              view={view === "states" || view === "pricing" ? "projects" : view}
+              view={
+                view === "states" || view === "pricing" || (view === "folder" && !folder)
+                  ? "projects"
+                  : view
+              }
+              folder={folder}
+              onFolderRename={() => setEdit({ kind: "folder", projects: inFolder(projects, folder) })}
+              onFolderRemove={() => void removeFolder(folder)}
               adapter={adapter}
               locale={locale}
               create={startFlow}
@@ -477,6 +510,9 @@ export default function App() {
           notify={notify}
           refresh={refresh}
           onClose={() => setEdit(null)}
+          folders={folders}
+          folder={folder}
+          go={go}
         />
       )}
       {deleting && (

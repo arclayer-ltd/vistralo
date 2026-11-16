@@ -171,6 +171,12 @@ export function ProjectTable({ lib, adapter, locale, onOpen, actions }: ViewProp
                 >
                   {projectTitle(p, locale)}
                 </a>
+                {p.folder && (
+                  <span className="list-folder">
+                    <Icon name="folder" size={16} />
+                    {p.folder}
+                  </span>
+                )}
               </td>
               <td>{typeText(p)}</td>
               <td>
