@@ -52,8 +52,8 @@ The price IDs are entered twice (browser build and functions) and must match. `s
 
 ## Turning it on, in order
 
-1. Apply the migration `supabase/migrations/20261013103120_vistralo_billing.sql`. It adds tables, functions and three restrictive policies; with both switches off it changes nothing for existing accounts.
-2. Set the function secrets, then deploy:
+1. **Done on 13 October 2026.** The migration `supabase/migrations/20261013103120_vistralo_billing.sql` is applied to the Vistralo project (`yyiikuzhgxdgrthntzyr`), recorded as version `20261013103120`. It added tables, functions and three restrictive policies; both switches are off, so nothing changed for existing accounts. Do not apply it again: it is not safe to run twice.
+2. **Deployed on 13 October 2026; the secrets are still to set.** `vistralo-paddle-webhook` (JWT verification off) and `vistralo-billing` (JWT verification on) are live at version 1. Set the function secrets from the table above; a deployed function reads a new secret without being redeployed. Until `PADDLE_WEBHOOK_SECRET` is set the webhook answers 503 to everything. To redeploy after a code change:
    ```sh
    supabase functions deploy vistralo-paddle-webhook --no-verify-jwt
    supabase functions deploy vistralo-billing
@@ -150,8 +150,8 @@ In the demo (`#demo/`, with a flag-on build) Settings → Billing has two demo-o
 ## Not proven yet
 
 - **Nothing has talked to Paddle with real credentials.** The request shapes follow Paddle's documentation as read on 13 October 2026 and are tested against fakes. First real run: step 3 and step 5 above.
-- **The Edge Functions have not been run under Deno.** Their logic is in `_shared/paddle.ts`, which the Node tests cover; the two thin `index.ts` files are unexecuted. Deno was not installed on the machine that did the follow-up work on 13 October 2026 either, so this is unchanged.
-- **The migration has been run on an in-process Postgres with Supabase-like roles (41 checks), not on the Vistralo project.** The repository's migrations do not match production exactly (the worker calls `vistralo_claim_next_job` and jobs have a `progress` column, neither of which is in `supabase/migrations`), so review the migration against the live schema before applying it. `docs/SCHEMA-DRIFT.md` lists every difference found in the code, what each means for this migration, and read-only queries that record the real schema. It deliberately adds restrictive policies and triggers instead of rewriting existing policies.
+- **The Edge Functions start under Deno, and nothing past their first refusals has run.** With no credentials the webhook answers 503 (no secret set) and 405 to anything but POST; `vistralo-billing` answers 401 without a token and 204 to the app's preflight. The signature check, the event handling and the Paddle calls have only run in the Node tests of `_shared/paddle.ts`.
+- **The migration is applied to the Vistralo project, with limits never switched on there.** It was first run against the live schema in a transaction that was rolled back, then applied, and checked both times as the signed-in owner through row-level security: creating projects, queueing a probe and a narration job, a 30-day share link, and Trash and restore all still work, and a cancelled narration job gives its place back. The only account is an administrator, so no member account has been through it, and `enforce_limits` has never been true in production. The worker's `vistralo_claim_next_job` and the jobs `progress` column, once only in production, are now in `supabase/migrations` under production's own versions (#27).
 - **The CSP host list is partial** until the probe is rerun with a real token.
 - **Sign-up has only been tested against a mock.** `npm run test:web:signup` proves the form and the app's side of each step. It does not prove Supabase's side: that "Confirm email" is on, that the confirmation email arrives, that `/auth/callback` is an allowed redirect address, or that `vistralo_complete_signup` behaves on the real database. Check those by hand on a preview deployment before opening sign-up.
 
