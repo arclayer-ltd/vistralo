@@ -1,6 +1,6 @@
 {
   "confirmed": false,
-  "note": "Plan names, limits and prices are placeholders the owner has not confirmed. This file is the one place they are written: the app (web/billing/plans.ts), the published /plans.json and the pricing page on vistralo.com all read it. The database seeds the same limits in the billing migration, and a test fails if the two disagree. The aiIncluded field marks the plans whose AI narration runs on Vistralo's own OpenAI and HeyGen keys; the worker reads it too (src/included-ai.cjs). Real prices are set in Paddle; the figures here are what the test checkout and the pricing page show.",
+  "note": "Plan names, limits and prices are placeholders the owner has not confirmed. This file is the one place they are written: the app (web/billing/plans.ts), the published /plans.json and the pricing page on vistralo.com all read it. The database seeds the same limits in the billing migration, and a test fails if the two disagree. The aiIncluded field marks the plans whose AI narration runs on Vistralo's own OpenAI key; the worker reads it too (src/included-ai.cjs). Real prices are set in Paddle; the figures here are what the test checkout and the pricing page show.",
   "currency": "USD",
   "plans": [
     {

@@ -109,7 +109,7 @@ export function ScriptEditor({
       </div>
       <p className="brief-script-cost">
         <Icon name="info" />
-        Making the voice is a paid request to HeyGen, on your own key or, on Pro and Studio, on
+        Making the voice is a paid request to OpenAI, on your own key or, on Pro and Studio, on
         Vistralo’s. It runs only if its estimate fits the cost cap per job in Settings, under AI
         narration.
       </p>

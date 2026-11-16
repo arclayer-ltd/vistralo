@@ -2,6 +2,7 @@
 // Build read: opens the recorded website in a headless Chrome, reads what its code actually loads and runs,
 // and ties that evidence to the recorded viewports so the walkthrough can say how each effect is built.
 const fs=require('node:fs');const crypto=require('node:crypto');const net=require('node:net');const dns=require('node:dns').promises;const {spawn}=require('node:child_process');
+const {publicAddress}=require('./server-egress.cjs');
 const {within,atomic}=require('./core.cjs');const {diff,shiftOf,W,H}=require('./viewports.cjs');
 
 // A library counts as seen when its file loads, its code is inside a loaded script, or it runs on the page.
@@ -36,9 +37,8 @@ const RANK={code:1,file:2,runtime:3};
 // Analytics, consent and payment scripts draw on canvases too, but they are not how the page is built.
 const THIRD_PARTY=/mixpanel|googletagmanager|google-analytics|gtag|hotjar|clarity\.ms|segment|facebook|fbevents|stripe|cookieyes|cookiebot|onetrust|intercom|hubspot|hs-scripts|sentry|recaptcha|hcaptcha|posthog|amplitude|fullstory|tiktok|linkedin|doubleclick/i;
 
-const privateAddress=a=>{
- if(net.isIPv4(a)){const [x,y]=a.split('.').map(Number);return x===0||x===10||x===127||x>=224||(x===100&&y>=64&&y<128)||(x===169&&y===254)||(x===172&&y>=16&&y<32)||(x===192&&y===168)||(x===198&&(y===18||y===19));}
- const s=String(a).toLowerCase();if(s.startsWith('::ffff:'))return privateAddress(s.slice(7));return s==='::'||s==='::1'||/^f[cd]/.test(s)||/^fe[89ab]/.test(s)||s.startsWith('ff');};
+// One set of address rules for every outbound request the worker makes (src/server-egress.cjs).
+const privateAddress=a=>!publicAddress(String(a));
 // Only public http(s) pages without credentials; the browser never visits private or local addresses.
 function publicUrl(raw){let u;try{u=new URL(String(raw||'').trim());}catch{return null;}
  if(!['http:','https:'].includes(u.protocol)||u.username||u.password)return null;const host=u.hostname.replace(/^\[|\]$/g,'').toLowerCase();

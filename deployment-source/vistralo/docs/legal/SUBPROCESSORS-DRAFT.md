@@ -12,16 +12,16 @@ Operator Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, 
 | Vercel | Hosts the web app at app.vistralo.com and the website at vistralo.com | Requests to those sites, including IP address and browser details in its logs. It does not store customer content | `{{VERCEL_ENTITY}}`, `{{REGIONS}}` | `{{SAFEGUARD}}` |
 | `{{WORKER_HOST}}` | The server that runs the processing worker | A working copy of a project's media while a job runs, and the worker's logs | `{{ENTITY_AND_COUNTRY}}` | `{{SAFEGUARD}}` |
 
-## OpenAI and HeyGen
+## OpenAI
 
-On Pro and Studio, narration runs on Vistralo's own OpenAI and HeyGen accounts, which makes both of them Vistralo's subprocessors for those plans: OpenAI receives frames from the recording and, for website projects, notes from the page's code; HeyGen receives the approved script. `{{OPENAI_ENTITY_REGION_SAFEGUARD}}`, `{{HEYGEN_ENTITY_REGION_SAFEGUARD}}`
+On Pro and Studio, narration runs on Vistralo's own OpenAI account, which makes OpenAI Vistralo's subprocessor for those plans: it receives frames from the recording and, for website projects, notes from the page's code, and then the approved script to speak. `{{OPENAI_ENTITY_REGION_SAFEGUARD}}`
 
-On Free, and for any customer who saves their own keys, narration runs on the customer's own accounts. Vistralo's worker makes the requests, but under the customer's agreement with each company.
+On Free, and for any customer who saves their own key, narration runs on the customer's own OpenAI account. Vistralo's worker makes the requests, but under the customer's agreement with OpenAI.
 
 | Company | When data is sent | What is sent | Classification |
 | --- | --- | --- | --- |
 | OpenAI | Only when the customer starts an AI walkthrough, an AI voice-over or a website analysis | Still pictures from the recording or capture, and notes read from a website's code | `{{COUNSEL: CUSTOMER'S OWN PROCESSOR, OR VISTRALO'S SUBPROCESSOR}}` |
-| HeyGen | Only when narration is voiced | The narration script as text, and the chosen voice ID | `{{COUNSEL}}` |
+| OpenAI (speech) | Only when narration is voiced | The narration script as text, and the chosen OpenAI voice name | `{{COUNSEL}}` |
 
 ## Companies that act on their own account
 

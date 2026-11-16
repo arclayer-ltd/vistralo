@@ -38,7 +38,9 @@ test('bot challenge page is detected and yields no build evidence',()=>{const ht
 
 test('only public http(s) addresses are read',()=>{
  for(const bad of ['http://localhost:3000/','http://127.0.0.1/','http://10.0.0.8/','http://192.168.1.1/','http://169.254.169.254/latest','http://[::1]/','http://printer.local/','http://user:pw@example.com/','ftp://example.com/','javascript:alert(1)','intranet','']) assert.equal(publicUrl(bad),null,bad);
- assert.equal(publicUrl(' https://unitedcarriers.com/#top '),BASE);assert.equal(publicUrl('http://8.8.8.8/'),'http://8.8.8.8/');});
+ assert.equal(publicUrl(' https://unitedcarriers.com/#top '),BASE);assert.equal(publicUrl('http://8.8.8.8/'),'http://8.8.8.8/');
+ // The same reserved ranges as every other outbound request (src/server-egress.cjs).
+ for(const reserved of ['http://192.0.0.8/','http://198.51.100.7/','http://203.0.113.9/'])assert.equal(publicUrl(reserved),null,reserved);});
 
 test('evidence text stays compact with every viewport matched',()=>{const site={builder:'Webflow',frameworks:[],bundlers:['Vite'],libraries:Array.from({length:20},(_,i)=>({name:`Lib${i}`,role:'animation',version:'1.0.0',strength:'file',evidence:['loaded lib'+i+'.js','running on the page']})),techniques:['WebGL2 canvas 1100x900'],fonts:[],used:{heading:'Inter 600 64px'},markers:[]};
  const viewports=Array.from({length:36},(_,i)=>({viewport:i+1,facts:['canvas webgl2 1100x900 in div.home-hero_globe-wrap','14 GSAP-animated elements (h1.heading-style-h1, p.text-size-medium, a.button)','CSS animation "marquee" on div.logos_track','Swiper carousel 1200x480 (div.swiper.testimonials_swiper)']}));

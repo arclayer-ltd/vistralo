@@ -165,7 +165,7 @@ export function Rail({
           <span className="workspace-copy" id="workspace-label">
             <strong>{profile.workspace}</strong>
             <small>
-              {billing.enabled ? planLabel(billing.state) : "Free plan"}
+              {billing.enabled ? planLabel(billing.state) : mode === "demo" ? "Demo" : "Workspace"}
             </small>
           </span>
           <Icon name="chevronDown" size={16} />

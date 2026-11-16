@@ -6,13 +6,32 @@ import { errorMessage } from "./flow-utils";
 
 type Settings = {
   openai: boolean;
-  heygen: boolean;
   voiceId: string;
   cap: number;
   workerKey: boolean;
-  /** The plan includes AI narration on Vistralo's own keys, so the account's own keys are optional. */
+  /** The plan includes AI narration on Vistralo's own key, so the account's own key is optional. */
   included?: boolean;
 };
+
+// OpenAI text-to-speech voices; the worker keeps the same list (src/providers.cjs).
+const DEFAULT_VOICE = "cedar";
+const VOICES = [
+  { id: "cedar", label: "Cedar (default)" },
+  { id: "marin", label: "Marin" },
+  { id: "alloy", label: "Alloy" },
+  { id: "ash", label: "Ash" },
+  { id: "ballad", label: "Ballad" },
+  { id: "coral", label: "Coral" },
+  { id: "echo", label: "Echo" },
+  { id: "fable", label: "Fable" },
+  { id: "nova", label: "Nova" },
+  { id: "onyx", label: "Onyx" },
+  { id: "sage", label: "Sage" },
+  { id: "shimmer", label: "Shimmer" },
+  { id: "verse", label: "Verse" },
+];
+// A voice saved before speech moved to OpenAI (a HeyGen voice ID) shows as the default, which the worker also uses.
+const knownVoice = (id: string) => (VOICES.some((voice) => voice.id === id) ? id : DEFAULT_VOICE);
 
 /**
  * Whether a key is on file. The key itself is never read back, so this is all the page can show.
@@ -29,8 +48,9 @@ function KeyState({ saved, included }: { saved: boolean; included: boolean }) {
 }
 
 /**
- * AI narration settings: the workspace's own OpenAI and HeyGen keys, the voice, and the most a
- * single job may cost. Keys are sealed in this browser before they are sent.
+ * AI narration settings: the workspace's own OpenAI key, the voice, and the most a single job may
+ * cost. OpenAI writes the narration and speaks it, so one key covers both. The key is sealed in
+ * this browser before it is sent.
  */
 export function ProviderSettings({
   adapter,
@@ -41,8 +61,7 @@ export function ProviderSettings({
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [openai, setOpenai] = useState("");
-  const [heygen, setHeygen] = useState("");
-  const [voiceId, setVoiceId] = useState("");
+  const [voiceId, setVoiceId] = useState(DEFAULT_VOICE);
   const [cap, setCap] = useState("1.00");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +73,7 @@ export function ProviderSettings({
       .then((value: Settings) => {
         if (cancelled) return;
         setSettings(value);
-        setVoiceId(value.voiceId);
+        setVoiceId(knownVoice(value.voiceId));
         setCap(value.cap.toFixed(2));
       })
       .catch((failure) => {
@@ -70,9 +89,8 @@ export function ProviderSettings({
     setBusy(true);
     setError("");
     try {
-      await adapter.rpc("providerSave", { openai, heygen, voiceId, cap: Number(cap) });
+      await adapter.rpc("providerSave", { openai, voiceId, cap: Number(cap) });
       setOpenai("");
-      setHeygen("");
       setSettings(await adapter.rpc("providerSettings"));
       notify("AI provider settings saved");
     } catch (failure) {
@@ -83,12 +101,6 @@ export function ProviderSettings({
   }
 
   const included = !!settings?.included;
-  const keyLabel = (name: string, saved: boolean) =>
-    included
-      ? `Your own ${name} key (optional)`
-      : saved
-        ? `Replace the ${name} key`
-        : `${name} API key`;
 
   if (!settings && !error)
     return (
@@ -101,15 +113,15 @@ export function ProviderSettings({
     <form className="sheet-stack provider-settings" onSubmit={save}>
       {included ? (
         <p>
-          Your plan includes AI narration. Vistralo writes it with OpenAI and speaks it with
-          HeyGen on its own accounts, so you need no keys. To run narration on your own
-          accounts instead, add your keys below.
+          Your plan includes AI narration. Vistralo writes and speaks it with OpenAI on its own
+          account, so you need no key. To run narration on your own OpenAI account instead, add
+          your key below.
         </p>
       ) : (
         <p>
-          On the Free plan, Vistralo writes the narration with OpenAI and speaks it with HeyGen
-          using keys from your own accounts, and each provider bills you for what you use. Pro
-          and Studio include AI narration with no keys needed.
+          On the Free plan, Vistralo writes and speaks the narration with OpenAI using a key from
+          your own account, and OpenAI bills you for what you use. Pro and Studio include AI
+          narration with no key needed.
         </p>
       )}
       {settings && !settings.workerKey && (
@@ -120,18 +132,24 @@ export function ProviderSettings({
         </p>
       )}
       <section className="provider-group" aria-labelledby="provider-keys-title">
-        <h2 id="provider-keys-title">Provider keys</h2>
+        <h2 id="provider-keys-title">Provider key</h2>
         <div className="sheet-group">
           <div className="provider-row">
             <div className="provider-row-head">
               <span>
                 OpenAI
-                <small>Looks at each screen and drafts the line spoken over it.</small>
+                <small>Looks at each screen, writes the line spoken over it, and speaks it.</small>
               </span>
               <KeyState saved={!!settings?.openai} included={included} />
             </div>
             <Field
-              label={keyLabel("OpenAI", !!settings?.openai)}
+              label={
+                included
+                  ? "Your own OpenAI key (optional)"
+                  : settings?.openai
+                    ? "Replace the OpenAI key"
+                    : "OpenAI API key"
+              }
               hint={settings?.openai ? "Leave empty to keep the saved key." : undefined}
             >
               <input
@@ -141,27 +159,6 @@ export function ProviderSettings({
                 placeholder="sk-…"
                 value={openai}
                 onChange={(e) => setOpenai(e.target.value)}
-              />
-            </Field>
-          </div>
-          <div className="provider-row">
-            <div className="provider-row-head">
-              <span>
-                HeyGen
-                <small>Speaks the approved script in the chosen voice.</small>
-              </span>
-              <KeyState saved={!!settings?.heygen} included={included} />
-            </div>
-            <Field
-              label={keyLabel("HeyGen", !!settings?.heygen)}
-              hint={settings?.heygen ? "Leave empty to keep the saved key." : undefined}
-            >
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={heygen}
-                onChange={(e) => setHeygen(e.target.value)}
               />
             </Field>
           </div>
@@ -176,12 +173,14 @@ export function ProviderSettings({
         <h2 id="provider-voice-title">Voice and spending</h2>
         <div className="sheet-group">
           <div className="provider-row">
-            <Field label="HeyGen voice ID" hint="Leave empty to use the default voice.">
-              <input
-                value={voiceId}
-                spellCheck={false}
-                onChange={(e) => setVoiceId(e.target.value)}
-              />
+            <Field label="Narration voice" hint="One of OpenAI's voices, used for every walkthrough.">
+              <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
+                {VOICES.map((voice) => (
+                  <option key={voice.id} value={voice.id}>
+                    {voice.label}
+                  </option>
+                ))}
+              </select>
             </Field>
           </div>
           <div className="provider-row">
@@ -189,8 +188,8 @@ export function ProviderSettings({
               label="Most a job may cost (US dollars)"
               hint={
                 included
-                  ? "Applies to jobs on your own keys. Jobs on the included keys stay within Vistralo's own limit, which this can lower but not raise. The same request is never sent twice."
-                  : "A job whose estimate is higher is refused before anything is sent. The same request is never sent twice."
+                  ? "Applies to jobs on your own key. Jobs on the included key stay within Vistralo's own limit, which this can lower but not raise. The same request is never sent twice."
+                  : "The whole job counts: one that would cost more is refused before anything is sent. The same request is never sent twice."
               }
             >
               <input

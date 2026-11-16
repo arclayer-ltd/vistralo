@@ -1,6 +1,6 @@
 # Vistralo app
 
-Record a flow, upload a video or screenshots, or point at a website. Vistralo finds every screen, writes one spoken line per screen with a vision model, voices it with HeyGen, and freezes the video on each screen while its line plays. For websites it also reads the page's code in headless Chrome, so the narration can name the real libraries behind each effect.
+Record a flow, upload a video or screenshots, or point at a website. Vistralo finds every screen, writes one spoken line per screen with a vision model, voices it with OpenAI text-to-speech, and freezes the video on each screen while its line plays. For websites it also reads the page's code in headless Chrome, so the narration can name the real libraries behind each effect.
 
 ## Parts
 
@@ -42,18 +42,21 @@ Run only one worker.
 
 ### Whose AI keys a job uses
 
-A customer's own OpenAI and HeyGen keys, saved encrypted in Settings, always come first. Without them, jobs on a plan marked `"aiIncluded": true` in `web/billing/plans.json` (Pro and Studio), and jobs on the owner's account, run on Vistralo's keys. Free jobs without their own keys are refused before anything is sent. The rule is `src/included-ai.cjs`; `tests/included-ai.test.cjs` covers it.
+A customer's own OpenAI key, saved encrypted in Settings, always comes first. Without them, jobs on a plan marked `"aiIncluded": true` in `web/billing/plans.json` (Pro and Studio), and jobs on the owner's account, run on Vistralo's key. Free jobs without their own key are refused before anything is sent. The rule is `src/included-ai.cjs`; `tests/included-ai.test.cjs` covers it.
 
-Vistralo's keys are set in `/etc/vistralo-worker.env` (mode 600), never in Git:
+Vistralo's key is set in `/etc/vistralo-worker.env` (mode 600), never in Git:
 
 | Variable | Meaning |
 | --- | --- |
-| `VISTRALO_INCLUDED_OPENAI_API_KEY`, `VISTRALO_INCLUDED_HEYGEN_API_KEY` | The keys included plans use |
-| `VISTRALO_INCLUDED_HEYGEN_VOICE_ID` | The voice for included narration when the customer has not chosen one |
+| `VISTRALO_INCLUDED_OPENAI_API_KEY` | The key included plans use, for the script and the voice |
+| `VISTRALO_INCLUDED_VOICE` | Optional. The OpenAI voice for included narration when the customer has not chosen one (default `cedar`) |
+| `VISTRALO_TTS_MODEL` | Optional. The speech model for every job (default `gpt-4o-mini-tts`) |
 | `VISTRALO_INCLUDED_COST_CAP_USD` | Most one job may spend on the included keys (default 1.00). A customer's own cap can lower it, never raise it |
 | `VISTRALO_INCLUDED_AI_PLANS` | Optional. Comma-separated plan ids that override `aiIncluded` in the plan table, for example `free,pro,studio` |
 
-To include Free later, set its `aiIncluded` to `true` in `plans.json` (which also changes the plans page, Settings and the site's pricing page) and deploy the app, the site and the worker. The worker logs which plans are included when it starts. It no longer reads `OPENAI_API_KEY` or `HEYGEN_API_KEY`: those once applied to every customer.
+To include Free later, set its `aiIncluded` to `true` in `plans.json` (which also changes the plans page, Settings and the site's pricing page) and deploy the app, the site and the worker. The worker logs which plans are included when it starts. It no longer reads `OPENAI_API_KEY`, which once applied to every customer. HeyGen was removed in November 2026; its old variables are ignored.
+
+To check a key on the worker host without starting a job: `node scripts/local-admin-worker.cjs --check-openai [owner id]`. It lists models with a free call and prints whether the key works and which models it can use; it never prints the key.
 
 The included keys spend Vistralo's money, so switch plan limits on (`enforce_limits`, see `docs/BILLING.md`) before paid plans are sold; without them a Pro or Studio account has no monthly cap.
 
@@ -73,7 +76,7 @@ Deploy it whenever either file changes. A merge to `main` deploys the web app on
 
 ## Providers
 
-The director script uses OpenAI (`VISTRALO_DIRECTOR_MODEL`, default `gpt-5-mini`, falling back on rate limits); speech uses HeyGen. See [docs/PROVIDERS.md](docs/PROVIDERS.md). Legal notices are drafts: [docs/legal](docs/legal/README.md).
+The director script uses OpenAI (`VISTRALO_DIRECTOR_MODEL`, default `gpt-5-mini`, falling back on rate limits); speech uses OpenAI `gpt-4o-mini-tts`. See [docs/PROVIDERS.md](docs/PROVIDERS.md). Legal notices are drafts: [docs/legal](docs/legal/README.md).
 
 ## Plans and payments
 

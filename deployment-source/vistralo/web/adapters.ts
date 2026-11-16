@@ -775,7 +775,7 @@ class DemoAdapter implements WorkspaceAdapter {
       result = {
         projects: await this.list(),
         execution: "demo",
-        credentials: { openai: false, heygen: false },
+        credentials: { openai: false },
         obsAvailable: false,
         active: null,
       };

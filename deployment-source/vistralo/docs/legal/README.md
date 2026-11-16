@@ -18,7 +18,7 @@ Every page the blueprint lists now has a draft. None is approved, none is publis
 | Copyright and takedown policy | `COPYRIGHT-TAKEDOWN-DRAFT.md` | 12 | Which notice regimes apply, a designated agent, response times |
 | AI and voice disclosure | `AI-AND-VOICE-DRAFT.md` | 14 | The providers' current data terms, the default voice and its consent, the models used in production |
 | Data processing addendum | `DPA-DRAFT.md` | 22 | Transfer mechanism, breach notice period, audit terms, how it is accepted |
-| Subprocessors and other recipients | `SUBPROCESSORS-DRAFT.md` | 17 | Each provider's contracting entity and region; whether OpenAI and HeyGen are the customer's processors or Vistralo's |
+| Subprocessors and other recipients | `SUBPROCESSORS-DRAFT.md` | 17 | Each provider's contracting entity and region; whether OpenAI is the customer's processor or Vistralo's |
 | Security overview | `SECURITY-OVERVIEW-DRAFT.md` | 13 | Hosting regions, encryption at rest, backups, who holds administrator access |
 | Company details and contact | `COMPANY-DETAILS-DRAFT.md` | 14 | Registered name and number, a postal contact for legal notices, representatives if required |
 
@@ -26,7 +26,7 @@ The terms were rewritten on 13 October 2026 to match the refund policy and to na
 
 Three facts in these drafts are true of the code but have to be confirmed in production before anything is published:
 
-1. Pro and Studio narration runs on Vistralo's own OpenAI and HeyGen keys; Free brings its own; a customer's own saved keys always come first (`src/included-ai.cjs`, decided 14 October 2026). The terms, the AI disclosure, the DPA, the subprocessors list and the refund policy say so; change them together if the plans that include AI change.
+1. Pro and Studio narration runs on Vistralo's own OpenAI key; Free brings its own; a customer's own saved keys always come first (`src/included-ai.cjs`, decided 14 October 2026). The terms, the AI disclosure, the DPA, the subprocessors list and the refund policy say so; change them together if the plans that include AI change.
 2. The database rules in production match the migrations. `docs/SCHEMA-DRIFT.md` records where they are known to differ.
 3. The share page described is the app's `/watch` page (`web/share/watch.ts`). It works only once the app change that adds it is deployed and the `vistralo-share` function from the same change is deployed with it.
 
@@ -40,7 +40,7 @@ Three facts in these drafts are true of the code but have to be confirmed in pro
 | Processing worker | The VPS worker downloads a project's media to its working folder, runs FFmpeg, and uploads results | Host provider and country `{{WORKER_HOST_AND_COUNTRY}}`, how long working copies stay on the host |
 | Website read | For website projects and recordings with a URL, the worker opens the public page in headless Chrome and records which libraries, fonts and effects it finds | Pages can show third-party personal data; the customer must have authority to capture them |
 | AI script | Held frames, small in-motion frames and the build-read evidence are sent to OpenAI to write the narration | OpenAI account terms, retention, transfer mechanism and subprocessor role |
-| Voice | The approved script text is sent to HeyGen; the returned audio is stored with the project | HeyGen contract, data location, retention and voice authorization |
+| Voice | The approved script text is sent to OpenAI text-to-speech; the returned audio is stored with the project | OpenAI terms, data location and retention; disclosure that the voice is AI-generated |
 | Provider keys | Entered by the owner, sealed in the browser to the worker's public key, stored only as ciphertext in `vistralo_provider_settings` | Key rotation and deletion when an account closes |
 | Operational data | Vercel and Supabase request logs; the worker's systemd journal on the VPS | Inventory actual logs and retention; avoid claiming logs contain no personal data |
 | Payments (built, switched off; see `docs/BILLING.md`) | Paddle is the merchant of record and holds card and billing details; Vistralo stores only the Paddle customer and subscription IDs, plan, status and dates in `vistralo_billing_customers` and `vistralo_billing_subscriptions`, and a ledger of webhook event IDs. Checkout loads Paddle.js and a Paddle frame in the app, and passes the account's email and ID to Paddle | Paddle's role and entity, what Paddle.js stores in the browser, transfer mechanism, how long billing records are kept after an account closes |
@@ -51,7 +51,7 @@ Do not launch public multi-user signups based on these draft notices. No analyti
 
 1. Operator is a software company in Bangladesh named **Dynamix LTD**; supplied address is **Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh**. Supplied contact is **contact@vistralo.com** and website is **vistralo.com**. Confirm company registration details, operational mailbox and domain ownership; role as controller or processor for each data set; age/audience; whether service is sold to US, EEA or UK residents.
 2. Hosting and backup countries; exact retention/deletion schedule for projects, uploads, sessions, logs, backups and provider data; rights request identity-check and response workflow.
-3. OpenAI/HeyGen and host contracts, subprocessors, international transfer safeguards, and whether EU and UK representatives or a DPO are required.
+3. OpenAI and host contracts, subprocessors, international transfer safeguards, and whether EU and UK representatives or a DPO are required.
 4. Whether California CCPA/CPRA applies to the operator and whether data is sold/shared; other US state thresholds and rights if public service expands.
 5. Commercial terms: service owner, payments/refunds, acceptable use, customer recording rights, service availability, support, termination, dispute venue and liability provisions. Payments will go through Paddle (decided 13 October 2026), which asks for terms, a privacy notice and a **refund policy** reachable from the site's navigation before it approves live payments: see `REFUND-POLICY-DRAFT.md`. The terms must name Paddle as reseller and merchant of record.
 6. Tested account deletion and export paths before public signups. A statement in a policy cannot substitute for an implemented request process.

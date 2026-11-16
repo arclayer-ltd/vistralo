@@ -81,24 +81,59 @@ async function start() {
   const PLANS_WITH_AI = includedPlans();
   const HOUSE = includedKeys();
   const workerAccount = signed.data.user.id;
-  console.log(`Included AI narration for plans: ${[...PLANS_WITH_AI].join(', ') || 'none'}; included keys ${HOUSE.openai && HOUSE.heygen ? 'set' : 'NOT set'}`);
+  console.log(`Included AI narration for plans: ${[...PLANS_WITH_AI].join(', ') || 'none'}; included OpenAI key ${HOUSE.openai ? 'set' : 'NOT set'}`);
   const settingsFor = async (owner) => {
     const rows = unwrap(await db.rpc('vistralo_worker_secrets', { target: owner }));
     const row = rows?.[0];
     const own = {
       openai: (row && decrypt(keys.privateKey, row.openai_cipher)) || '',
-      heygen: (row && decrypt(keys.privateKey, row.heygen_cipher)) || '',
       voiceId: (row && row.voice_id) || '',
       cap: Number(row && row.cost_cap_usd) || 0,
     };
     const included = owner === workerAccount || PLANS_WITH_AI.has(await loadPlan(db, owner));
     const settings = chooseKeys({ own, included, house: HOUSE });
-    if (!settings.openai && !settings.heygen) settings.need('openai');
+    settings.need('openai');
+    // VISTRALO_TTS_MODEL swaps the speech model for every job, for example when OpenAI releases a newer one.
+    settings.speechModel = typeof process.env.VISTRALO_TTS_MODEL === 'string' ? process.env.VISTRALO_TTS_MODEL.trim() : '';
     return settings;
   };
   const providersFor = (settings) => new Providers(service.store, {
-    read: () => ({ openai: settings.openai, heygen: settings.heygen, voice: settings.voiceId }),
+    read: () => ({ openai: settings.openai, voice: settings.voiceId, speechModel: settings.speechModel }),
   }, fetch);
+  // OpenAI speech is about 1.5 cents a minute of audio, roughly 1000 characters; 2 cents per 1000 leaves headroom.
+  const speechEstimate = (chars) => Math.max(0.01, Number((chars / 1000 * 0.02).toFixed(2)));
+  const speechQuote = (settings, chars) => `OpenAI ${providersFor(settings).speechModel()} text-to-speech, ${chars} characters, estimated at 2 cents per 1000 characters.`;
+  // The cost cap is per job: every paid call adds its estimate to the job's running total, and a call that would
+  // take the total past the cap is refused before it is sent. Estimates are never clipped to fit the cap.
+  let spent = 0;
+  const spend = (settings, estimate, what) => {
+    const left = Number((settings.cap - spent).toFixed(4));
+    assert(estimate <= left + 1e-9, `${what} is estimated at $${estimate.toFixed(2)}, which would take this job past its $${settings.cap.toFixed(2)} cost cap. Raise the cap in Settings and retry.`);
+    spent = Number((spent + estimate).toFixed(4));
+    return { cap: left, estimate };
+  };
+  const refund = (estimate) => { spent = Math.max(0, Number((spent - estimate).toFixed(4))); };
+
+  // --check-openai [owner id]: confirm the OpenAI key a job would use works, with a free model listing, then exit.
+  // The key is never printed and no job is started.
+  if (process.argv.includes('--check-openai')) {
+    const ownerArg = process.argv[process.argv.indexOf('--check-openai') + 1];
+    const owner = ownerArg && !ownerArg.startsWith('--') ? ownerArg : workerAccount;
+    try {
+      const settings = await settingsFor(owner);
+      const providers = providersFor(settings);
+      const r = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: 'Bearer ' + settings.openai }, signal: AbortSignal.timeout(20000) });
+      if (!r.ok) { console.log(`OpenAI key (${settings.sources.openai}) rejected: HTTP ${r.status}`); process.exitCode = 1; return; }
+      const ids = new Set(((await r.json()).data || []).map((m) => m.id));
+      const director = process.env.VISTRALO_DIRECTOR_MODEL || 'gpt-5-mini';
+      console.log(`OpenAI key works (${settings.sources.openai} key).`);
+      for (const model of [director, 'gpt-4.1', 'gpt-4o-mini', providers.speechModel()]) console.log(`  ${model}: ${ids.has(model) ? 'available' : 'NOT available'}`);
+      console.log(`  voice: ${providers.voiceId()}, cost cap per job: $${settings.cap.toFixed(2)}`);
+    } finally {
+      await service.close();
+    }
+    return;
+  }
 
   // Evenly spaced frames describe the whole capture; the first N only show its opening moment.
   const spread = (items, count) => {
@@ -118,14 +153,12 @@ async function start() {
     );
     assert(frames.length >= 2, 'Capture produced too few frames to analyse');
     const model = typeof job.payload.model === 'string' && job.payload.model ? job.payload.model : 'gpt-4o-mini';
-    const estimate = Math.min(settings.cap, Number((0.02 + frames.length * 0.01).toFixed(2)));
     const result = await providersFor(settings).screenScript(nativeId, {
       signal,
       uploadApproved: true,
       model,
       frames,
-      cap: settings.cap,
-      estimate,
+      ...spend(settings, Number((0.02 + frames.length * 0.01).toFixed(2)), 'The script draft'),
       approved: true,
       quote: `OpenAI ${model} vision pricing, ${frames.length} evidence frames, estimated at 1 cent per frame plus 2 cents of text.`,
     });
@@ -135,7 +168,7 @@ async function start() {
 
   async function narrate(job, p, nativeId, nativeRoot, files) {
     const settings = await settingsFor(job.owner_id);
-    settings.need('heygen');
+    settings.need('openai');
     assert(p.data.scriptApproved === true, 'Approve the narration script before generating audio');
     const script = String(p.data.script || '').trim();
     assert(script.length > 0 && script.length <= 5000, 'Narration script must be 1–5000 characters');
@@ -150,15 +183,13 @@ async function start() {
     assert(duration > 0, 'Captured video has no measurable duration');
     checkDuration(entitlement, duration);
 
-    const estimate = Math.min(settings.cap, Math.max(0.02, Number((script.length / 1000 * 0.03).toFixed(2))));
     const speech = await providersFor(settings).speech(nativeId, {
       signal,
       text: script,
       scriptApproved: true,
-      cap: settings.cap,
-      estimate,
+      ...spend(settings, speechEstimate(script.length), 'The voice-over'),
       approved: true,
-      quote: `HeyGen text-to-speech, ${script.length} characters, estimated at 3 cents per 1000 characters.`,
+      quote: speechQuote(settings, script.length),
     });
     const composed = await composeNarrated(service.media, nativeRoot, [
       { video: imported.file, audio: speech.file, start: 0, end: duration, text: script },
@@ -173,7 +204,7 @@ async function start() {
         ...p.data, files,
         narratedVideo: video,
         captions,
-        voiceId: settings.voiceId || null,
+        voiceId: providersFor(settings).voiceId(),
         output: { ...composed, file: video },
       },
     };
@@ -196,7 +227,6 @@ async function start() {
     checkDuration(entitlement, duration);
     const settings = await settingsFor(job.owner_id);
     settings.need('openai');
-    settings.need('heygen');
     const picture = (await service.media.probe(sourcePath)).streams.find((s) => s.codec_type === 'video') || {};
     // With a website address, the live site is read in the background while the recording is scanned.
     // A failed read only means every build claim stays "likely"; it never fails the walkthrough.
@@ -233,6 +263,11 @@ async function start() {
     // The film aims at about three times the recording and not much past six minutes; the build kit keeps the full detail.
     // Speech runs at about 2.4 words a second, and each pause adds a second of silence around its words.
     const budget = Math.round(Math.max(60, Math.min(3 * duration, 360) - duration - views.length * 0.5) * 2.4);
+    // The whole film is priced before the first paid call, so a job over the cap stops before it spends anything:
+    // the script, plus speech for the full word budget at about 6 characters a word, at least 1 cent per screen.
+    const directorEstimate = Number((0.1 + views.length * 0.008).toFixed(2));
+    const voiceEstimate = Math.max(Number((views.length * 0.01).toFixed(2)), speechEstimate(budget * 6));
+    assert(directorEstimate + voiceEstimate <= settings.cap + 1e-9, `This walkthrough is estimated at $${(directorEstimate + voiceEstimate).toFixed(2)} (${views.length} screens), above its $${settings.cap.toFixed(2)} cost cap. Raise the cap in Settings and retry.`);
     let drafted;
     for (const [i, model] of models.entries()) {
       try {
@@ -245,14 +280,15 @@ async function start() {
           budget,
           width: picture.width || 1920,
           height: picture.height || 1080,
-          cap: settings.cap,
-          estimate: Math.min(settings.cap, Number((0.1 + views.length * 0.008).toFixed(2))),
+          ...spend(settings, directorEstimate, 'The narration script'),
           approved: true,
           quote: `OpenAI ${model} vision, ${views.length} high-detail screens and ${motion.length} small motion frames, estimated at under 1 cent per screen plus 10 cents of text.`,
         });
         break;
       } catch (error) {
         if (i === models.length - 1 || ![400, 403, 404, 429].includes(error.status)) throw error;
+        // A refused request is not billed, so its estimate goes back to the job's budget.
+        refund(directorEstimate);
         console.warn(`Director model ${model} was rejected (HTTP ${error.status}); trying ${models[i + 1]}`);
       }
     }
@@ -266,10 +302,9 @@ async function start() {
         signal,
         text: stop.text,
         scriptApproved: true,
-        cap: settings.cap,
-        estimate: Math.min(settings.cap, Math.max(0.02, Number((stop.text.length / 1000 * 0.03).toFixed(2)))),
+        ...spend(settings, speechEstimate(stop.text.length), `The voice for screen ${i + 1}`),
         approved: true,
-        quote: `HeyGen text-to-speech, ${stop.text.length} characters, estimated at 3 cents per 1000 characters.`,
+        quote: speechQuote(settings, stop.text.length),
       });
       stop.audio = speech.file;
     }
@@ -320,7 +355,7 @@ async function start() {
         sourceMaster: p.data.sourceMaster || source,
         narratedVideo: video,
         captions,
-        voiceId: settings.voiceId || null,
+        voiceId: providersFor(settings).voiceId(),
         output: { ...composed, file: video },
         mediaInfo: { duration: composed.duration, width: stream.width, height: stream.height },
       },
@@ -401,7 +436,7 @@ async function start() {
     unwrap(await db.from('vistralo_runtime').upsert({
       id: 'capture-worker',
       heartbeat_at: new Date().toISOString(),
-      capabilities: { render: true, website: true, probe: true },
+      capabilities: { render: true, website: true, probe: true, narrate: true },
     }));
   }
   const upload = async (job, rel, nativeRoot, files) => {
@@ -428,13 +463,24 @@ async function start() {
   };
   // A job only reaches 'processing' once this worker claims it, so anything
   // still in that state after a restart was abandoned mid-flight and would
-  // otherwise spin in the dashboard forever. Requeue it instead.
+  // otherwise spin in the dashboard forever. Free jobs are requeued. A job that
+  // calls OpenAI may already have been charged, so it fails instead and the
+  // owner decides whether to pay for it again.
+  const paidJob = (row) => row.kind === 'narrate' || (row.kind === 'website' && !!(row.payload && row.payload.narrate));
   async function reclaimAbandoned(olderThanMs) {
     const cutoff = new Date(Date.now() - olderThanMs).toISOString();
-    const rows = unwrap(await db.from('vistralo_jobs').select('id').eq('state', 'processing').lt('started_at', cutoff));
+    const rows = unwrap(await db.from('vistralo_jobs').select('id,kind,payload,project_id').eq('state', 'processing').lt('started_at', cutoff));
     for (const row of rows || []) {
-      unwrap(await db.from('vistralo_jobs').update({ state: 'queued', started_at: null, progress: {} }).eq('id', row.id));
-      console.log('Requeued abandoned job', row.id);
+      if (!paidJob(row)) {
+        unwrap(await db.from('vistralo_jobs').update({ state: 'queued', started_at: null, progress: {} }).eq('id', row.id));
+        console.log('Requeued abandoned job', row.id);
+        continue;
+      }
+      const message = 'The worker stopped while this job was running. OpenAI may already have charged for part of it, so it was not restarted automatically. Retry it when you are ready.';
+      unwrap(await db.from('vistralo_jobs').update({ state: 'failed', error: message, finished_at: new Date().toISOString(), progress: {} }).eq('id', row.id));
+      const project = unwrap(await db.from('vistralo_projects').select('document,updated_at').eq('id', row.project_id).maybeSingle());
+      if (project) unwrap(await db.from('vistralo_projects').update({ document: { ...project.document, status: 'failed', error: message }, updated_at: new Date().toISOString() }).eq('id', row.project_id).eq('updated_at', project.updated_at));
+      console.log('Failed abandoned paid job instead of repeating its charges', row.id);
     }
   }
   // At startup nothing of ours is running, so any age qualifies.
@@ -454,6 +500,7 @@ async function start() {
       if (!job) { await new Promise((r) => setTimeout(r, 1000)); continue; }
       console.log('Claimed', job.kind, job.id);
       percentFloor = 0;
+      spent = 0;
       const stopWatch = watchCancel(job);
       let native;
       try {

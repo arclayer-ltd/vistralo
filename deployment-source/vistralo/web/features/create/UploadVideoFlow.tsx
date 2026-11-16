@@ -70,7 +70,7 @@ export function UploadVideoFlow({
             label="Add an AI voice-over"
             hint={
               voiceover
-                ? "After the upload, Vistralo finds every screen in the video, pauses on each one and explains its design in an AI voice. The narrated video is longer than the recording. It uses your OpenAI and HeyGen keys within your cost cap."
+                ? "After the upload, Vistralo finds every screen in the video, pauses on each one and explains its design in an AI voice. The narrated video is longer than the recording. It uses your OpenAI key, or Vistralo's on Pro and Studio, within the cost cap."
                 : "The video keeps its own audio. You can add an AI voice-over later from the project."
             }
             checked={voiceover}

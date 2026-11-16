@@ -51,7 +51,6 @@ export function JobFailure({
                   adapter.rpc("walkthrough", {
                     id: project.id,
                     url: project.url,
-                    viewports: [{ width: 1440, height: 900 }],
                   }),
                 "Website capture restarted.",
               )
