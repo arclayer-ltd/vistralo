@@ -81,6 +81,8 @@ export const statusHint = (p: Project) => {
     return p.status === "ready"
       ? "The visual brief is ready to read and share."
       : "Analyze a website to create the brief.";
+  if (p.data?.walkthroughDraft && p.data?.scriptApproved !== true)
+    return "The narration script is ready. Read it below, then approve it to add the voice.";
   if (p.status === "ready")
     return p.data?.narratedVideo
       ? "Narrated with an AI voice. Ready to watch, download and share."

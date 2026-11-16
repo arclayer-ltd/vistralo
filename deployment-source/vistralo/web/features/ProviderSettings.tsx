@@ -4,11 +4,30 @@ import { errorMessage } from "./flow-utils";
 
 type Settings = {
   openai: boolean;
-  heygen: boolean;
   voiceId: string;
   cap: number;
   workerKey: boolean;
 };
+
+// OpenAI text-to-speech voices; the worker keeps the same list (src/providers.cjs).
+const DEFAULT_VOICE = "cedar";
+const VOICES = [
+  { id: "cedar", label: "Cedar (default)" },
+  { id: "marin", label: "Marin" },
+  { id: "alloy", label: "Alloy" },
+  { id: "ash", label: "Ash" },
+  { id: "ballad", label: "Ballad" },
+  { id: "coral", label: "Coral" },
+  { id: "echo", label: "Echo" },
+  { id: "fable", label: "Fable" },
+  { id: "nova", label: "Nova" },
+  { id: "onyx", label: "Onyx" },
+  { id: "sage", label: "Sage" },
+  { id: "shimmer", label: "Shimmer" },
+  { id: "verse", label: "Verse" },
+];
+const knownVoice = (id: string) =>
+  VOICES.some((voice) => voice.id === id) ? id : DEFAULT_VOICE;
 
 export function ProviderSettings({
   adapter,
@@ -19,8 +38,7 @@ export function ProviderSettings({
 }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [openai, setOpenai] = useState("");
-  const [heygen, setHeygen] = useState("");
-  const [voiceId, setVoiceId] = useState("");
+  const [voiceId, setVoiceId] = useState(DEFAULT_VOICE);
   const [cap, setCap] = useState("1.00");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +50,7 @@ export function ProviderSettings({
       .then((value: Settings) => {
         if (cancelled) return;
         setSettings(value);
-        setVoiceId(value.voiceId);
+        setVoiceId(knownVoice(value.voiceId));
         setCap(value.cap.toFixed(2));
       })
       .catch((failure) => {
@@ -48,9 +66,8 @@ export function ProviderSettings({
     setBusy(true);
     setError("");
     try {
-      await adapter.rpc("providerSave", { openai, heygen, voiceId, cap: Number(cap) });
+      await adapter.rpc("providerSave", { openai, voiceId, cap: Number(cap) });
       setOpenai("");
-      setHeygen("");
       setSettings(await adapter.rpc("providerSettings"));
       notify("AI provider settings saved");
     } catch (failure) {
@@ -85,23 +102,18 @@ export function ProviderSettings({
           onChange={(e) => setOpenai(e.target.value)}
         />
       </label>
+      <p className="caption">
+        OpenAI writes the narration and speaks it, so this one key covers both.
+      </p>
       <label className="field">
-        HeyGen API key {settings?.heygen && <span className="caption">— configured</span>}
-        <input
-          type="password"
-          autoComplete="off"
-          placeholder={settings?.heygen ? "Saved. Enter a new key to replace it." : "HeyGen key"}
-          value={heygen}
-          onChange={(e) => setHeygen(e.target.value)}
-        />
-      </label>
-      <label className="field">
-        HeyGen voice ID
-        <input
-          value={voiceId}
-          placeholder="Leave empty to use the approved default voice"
-          onChange={(e) => setVoiceId(e.target.value)}
-        />
+        Narration voice
+        <select value={voiceId} onChange={(e) => setVoiceId(e.target.value)}>
+          {VOICES.map((voice) => (
+            <option key={voice.id} value={voice.id}>
+              {voice.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="field">
         Cost cap per job (USD)

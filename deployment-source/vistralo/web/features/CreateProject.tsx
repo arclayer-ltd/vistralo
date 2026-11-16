@@ -16,6 +16,8 @@ import {
   formatBytes,
   MAX_BROWSER_RECORDING_BYTES,
   publicWebsite,
+  REVIEW_SCRIPT_KEY,
+  reviewScriptPreferred,
   validateVideo,
 } from "./flow-utils";
 import {
@@ -223,6 +225,16 @@ export function CreateProject({
     [microphoneLive, setMicrophoneLive] = useState(false),
     [micLevel, setMicLevel] = useState(0),
     [spoken, setSpoken] = useState(false);
+  // Reading the script before it is voiced is the default; the choice is remembered in this browser.
+  const [reviewScript, setReviewScriptState] = useState(reviewScriptPreferred);
+  const setReviewScript = (value: boolean) => {
+    setReviewScriptState(value);
+    try {
+      localStorage.setItem(REVIEW_SCRIPT_KEY, value ? "on" : "off");
+    } catch {
+      /* storage unavailable: the choice lasts for this sheet only */
+    }
+  };
   const [mobile, setMobile] = useState(true),
     [busy, setBusy] = useState(false);
   const [requestingCapture, setRequestingCapture] = useState(false);
@@ -300,6 +312,21 @@ export function CreateProject({
         real tech behind each effect.
       </small>
     </label>
+  );
+  const reviewToggle = offersVoiceover && (
+    <div className="sheet-group">
+      <SheetToggle
+        label="Review the script before it's voiced"
+        hint={
+          reviewScript
+            ? "Vistralo writes the narration for each screen and stops, so you can read and edit it. The voice is added when you approve it."
+            : "The narration is written and voiced in one go."
+        }
+        checked={reviewScript}
+        onChange={setReviewScript}
+        disabled={busy}
+      />
+    </div>
   );
 
   useEffect(() => {
@@ -959,6 +986,7 @@ export function CreateProject({
         const uploaded = await adapter.upload(project.id, media!, {
           signal: controller.current.signal,
           onProgress: setProgress,
+          review: offersVoiceover && reviewScript,
           ...(source === "screen" && spoken
             ? { voice: "microphone" as const }
             : source === "upload" && offersVoiceover
@@ -978,7 +1006,9 @@ export function CreateProject({
             : voice === "microphone"
               ? "Recording saved with your voice."
               : voice === "queued"
-              ? "Upload finished. Vistralo is writing the narration and adding the AI voice. This takes a few minutes."
+              ? offersVoiceover && reviewScript
+                ? "Upload finished. Vistralo is writing the narration; open the project to read it before it is voiced."
+                : "Upload finished. Vistralo is writing the narration and adding the AI voice. This takes a few minutes."
               : voice === "offline"
                 ? "Recording saved. The capture worker is offline, so the voice was not started."
               : "Recording uploaded. The worker checks its checksum before processing it.",
@@ -1330,6 +1360,7 @@ export function CreateProject({
                   </ol>
                 )}
                 {siteUrlField}
+                {reviewToggle}
                 {!offersVoiceover && (
                   <p className="sheet-note">
                     <Icon name="info" />
@@ -1386,7 +1417,7 @@ export function CreateProject({
                       label="Add an AI voice-over"
                       hint={
                         voiceover
-                          ? "After the upload, Vistralo finds every screen in the video, pauses on each one and explains its design in an AI voice. The narrated video is longer than the recording. It uses your OpenAI and HeyGen keys within your cost cap."
+                          ? "After the upload, Vistralo finds every screen in the video, pauses on each one and explains its design in an AI voice. The narrated video is longer than the recording. It uses your OpenAI key within your cost cap."
                           : "The video keeps its own audio. You can add an AI voice-over later from the project."
                       }
                       checked={voiceover}
@@ -1396,6 +1427,7 @@ export function CreateProject({
                   </div>
                 )}
                 {voiceover && siteUrlField}
+                {voiceover && reviewToggle}
                 {!adapter.capabilities.upload && (
                   <p className="sheet-note">
                     <Icon name="info" />
@@ -1445,6 +1477,7 @@ export function CreateProject({
                       )}
                     </div>
                     {!microphone && siteUrlField}
+                    {!microphone && reviewToggle}
                     <ol className="sheet-steps" aria-label="How recording works">
                       <li>
                         <Icon name="fullscreen" />

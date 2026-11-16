@@ -398,8 +398,8 @@ export function PricingPage({
       {blocked && !onSignIn && <p className="caption">{blocked}</p>}
       <p className="caption plans-footnote">
         Payments are taken by Paddle, the merchant of record for Vistralo. Paddle adds any tax for
-        your country at checkout and sends the receipt. AI narration uses your own OpenAI and HeyGen
-        keys, which those providers bill separately.
+        your country at checkout and sends the receipt. AI narration uses your own OpenAI key, which
+        OpenAI bills separately.
       </p>
       <LegalLinks />
       {onBack && (

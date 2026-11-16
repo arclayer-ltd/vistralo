@@ -32,9 +32,15 @@ export function Projects({
   bulk,
   loading,
   onShortcuts,
+  folder = "",
+  onFolderRename,
+  onFolderRemove,
 }: {
   projects: Project[];
   view: string;
+  folder?: string;
+  onFolderRename?: () => void;
+  onFolderRemove?: () => void;
   adapter: WorkspaceAdapter;
   locale: string;
   create: (flow: CreateFlow) => void;
@@ -94,9 +100,11 @@ export function Projects({
       projects.filter((p) =>
         view === "trash"
           ? p.trashed
-          : !p.trashed && (view !== "shared" || p.access === "workspace"),
+          : view === "folder"
+            ? !p.trashed && (p.folder || "").trim() === folder
+            : !p.trashed && (view !== "shared" || p.access === "workspace"),
       ),
-    [projects, view],
+    [projects, view, folder],
   );
   const filtered = useMemo(
     () =>
@@ -276,15 +284,31 @@ export function Projects({
             ? labels.trash
             : view === "shared"
               ? labels.shared
-              : labels.projects}
+              : view === "folder"
+                ? folder
+                : labels.projects}
         </h1>
         <p>
           {view === "trash"
             ? "Deleted projects stay here until you restore or permanently delete them."
             : view === "shared"
               ? "Projects others have shared with you."
-              : "Walkthroughs and visual briefs from your recordings, websites and videos."}
+              : view === "folder"
+                ? `Folder · ${scope.length} ${scope.length === 1 ? "project" : "projects"}. Use Move to on a project to add it or take it out.`
+                : "Walkthroughs and visual briefs from your recordings, websites and videos."}
         </p>
+        {view === "folder" && (
+          <div className="folder-actions">
+            <button className="button button-ghost" onClick={onFolderRename}>
+              <Icon name="edit" />
+              Rename folder
+            </button>
+            <button className="button button-ghost" onClick={onFolderRemove}>
+              <Icon name="close" />
+              Remove folder
+            </button>
+          </div>
+        )}
       </header>
       <div className="workspace-toolbar">
         {selected.length ? (
@@ -769,6 +793,12 @@ export function Projects({
                     >
                       {projectTitle(p, locale)}
                     </a>
+                    {p.folder && (
+                      <span className="list-folder">
+                        <Icon name="folder" size={16} />
+                        {p.folder}
+                      </span>
+                    )}
                   </td>
                   <td>{typeText(p)}</td>
                   <td>

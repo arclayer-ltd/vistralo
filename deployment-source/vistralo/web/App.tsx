@@ -22,9 +22,12 @@ import {
   Menu,
   TextDialog,
   ToolButton,
+  confirmDialog,
   type MenuAction,
 } from "./components/Primitives";
 import { Projects } from "./features/Projects";
+import { MoveDialog } from "./features/FolderDialogs";
+import { folderFromRoute, folderList, folderName, folderRoute, inFolder } from "./features/folders";
 import { States } from "./features/States";
 import { CreateProject } from "./features/CreateProject";
 import { flowFor, type CreateFlow } from "./features/create-flows";
@@ -914,7 +917,34 @@ export default function App() {
   if (mode === "cloud" && (!authenticated || new URLSearchParams(location.search).get("recovery") === "1"))
     return <CloudLogin onPlans={billing.enabled ? () => go("pricing") : undefined} onReady={async () => { await refresh(); const s = await adapter.settings(); setProfile(p => ({...p,name:String(s.displayName),email:String(s.email),workspace:String(s.name)})); }} />;
   const current = projects.find((p) => p.id === path[1]),
-    view = path[0] || "projects";
+    view = path[0] || "projects",
+    folder = folderFromRoute(path),
+    folders = folderList(projects);
+  // A folder is a name on its projects, so renaming or removing one updates every project in it.
+  async function moveTo(items: Project[], target: string) {
+    const name = folderName(target);
+    for (const p of items) if ((p.folder || "") !== name) await adapter.update(p.id, { folder: name });
+    await refresh();
+  }
+  async function removeFolder(name: string) {
+    const items = inFolder(projects, name);
+    if (
+      !(await confirmDialog({
+        title: `Remove the folder “${name}”?`,
+        message: `The ${items.length === 1 ? "project in it stays" : `${items.length} projects in it stay`} in your workspace, outside any folder. Nothing is deleted.`,
+        confirmLabel: "Remove folder",
+        cancelLabel: "Keep folder",
+      }))
+    )
+      return;
+    try {
+      await moveTo(items, "");
+      notify(`Folder “${name}” removed`);
+      go("projects");
+    } catch (failure) {
+      notify((failure as Error).message, true);
+    }
+  }
   const visible = projects.filter((p) => !p.trashed),
     pinned = visible.filter((p) => p.pinned).slice(0, 5),
     recent = visible
@@ -1022,7 +1052,7 @@ export default function App() {
             <span className="workspace-copy" id="workspace-label">
               <strong>{profile.workspace}</strong>
               <small>
-                {billing.enabled ? planLabel(billing.state) : "Free plan"}
+                {billing.enabled ? planLabel(billing.state) : mode === "demo" ? "Demo" : "Workspace"}
               </small>
             </span>
             <Icon name="chevronDown" size={16} />
@@ -1079,6 +1109,21 @@ export default function App() {
           ))}
         </nav>
         <div className="rail-projects">
+          <section aria-label="Folders">
+            <h2>Folders</h2>
+            {folders.map((f) => (
+              <RailRow
+                key={f.name}
+                icon="folder"
+                label={`${f.name} (${f.count})`}
+                active={view === "folder" && folder === f.name}
+                onClick={() => go(folderRoute(f.name))}
+              />
+            ))}
+            {!folders.length && (
+              <p className="rail-empty">Use Move to on a project to file it in a folder</p>
+            )}
+          </section>
           <section>
             <h2>Pinned</h2>
             {pinned.map((p) => (
@@ -1276,7 +1321,14 @@ export default function App() {
           ) : (
             <Projects
               projects={projects}
-              view={view === "states" || view === "pricing" ? "projects" : view}
+              view={
+                view === "states" || view === "pricing" || (view === "folder" && !folder)
+                  ? "projects"
+                  : view
+              }
+              folder={folder}
+              onFolderRename={() => setEdit({ kind: "folder", projects: inFolder(projects, folder) })}
+              onFolderRemove={() => void removeFolder(folder)}
               adapter={adapter}
               locale={locale}
               create={startFlow}
@@ -1375,31 +1427,48 @@ export default function App() {
         />
       )}
       <TestCheckout billing={billing} />
-      {edit && (
+      {edit?.kind === "move" && (
+        <MoveDialog
+          projects={edit.projects}
+          folders={folders}
+          onClose={() => setEdit(null)}
+          onMove={async (target) => {
+            await moveTo(edit.projects, target);
+            notify(
+              target
+                ? `Moved to “${target}”`
+                : `${edit.projects.length === 1 ? "Project" : "Projects"} taken out of the folder`,
+            );
+          }}
+        />
+      )}
+      {edit?.kind === "folder" && (
         <TextDialog
-          title={edit.kind === "rename" ? "Rename project" : "Move projects"}
-          icon={edit.kind === "rename" ? "edit" : "folder"}
-          label={edit.kind === "rename" ? "Project name" : "Folder name"}
-          initial={
-            edit.kind === "rename"
-              ? edit.projects[0].name
-              : edit.projects[0].folder || ""
-          }
-          description={
-            edit.kind === "move"
-              ? "Organize projects with a folder name. Search includes folder names."
-              : undefined
-          }
+          title="Rename folder"
+          icon="folder"
+          label="Folder name"
+          initial={folder}
+          submitLabel="Rename"
           onClose={() => setEdit(null)}
           onSubmit={async (value) => {
-            for (const p of edit.projects)
-              await adapter.update(
-                p.id,
-                edit.kind === "rename" ? { name: value } : { folder: value },
-              );
-            notify(
-              edit.kind === "rename" ? "Project renamed" : "Projects moved",
-            );
+            const name = folderName(value);
+            if (name === folder) return;
+            await moveTo(edit.projects, name);
+            notify(`Folder renamed to “${name}”`);
+            go(folderRoute(name));
+          }}
+        />
+      )}
+      {edit?.kind === "rename" && (
+        <TextDialog
+          title="Rename project"
+          icon="edit"
+          label="Project name"
+          initial={edit.projects[0].name}
+          onClose={() => setEdit(null)}
+          onSubmit={async (value) => {
+            await adapter.update(edit.projects[0].id, { name: value });
+            notify("Project renamed");
             await refresh();
           }}
         />

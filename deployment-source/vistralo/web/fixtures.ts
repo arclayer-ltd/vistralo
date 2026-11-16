@@ -129,6 +129,20 @@ export function createDemoFixtures(now = Date.now()): Project[] {
         sampleVideo: true,
         sampleVideoNotice:
           "Short sample preview; 12:07 is fictional project metadata.",
+        // A drafted narration waiting for review, so the script editor can be seen in the demo.
+        scriptApproved: false,
+        walkthroughDraft: {
+          model: "demo",
+          draftedAt: "2026-11-17T09:00:00.000Z",
+          closing:
+            "Dark neutrals with one violet accent, a geometric sans and 8 pixel corners hold the whole tool together. The strongest choice is the single timeline; the weakest is the low contrast of the secondary labels.",
+          stops: [
+            { at: 0, label: "Editor overview", frame: null, text: "This is a fictional video editor. The timeline runs along the bottom, about 220 pixels tall, with the preview above it and a narrow tool rail on the left." },
+            { at: 4.5, label: "Timeline", frame: null, text: "Clips sit on three tracks, each about 48 pixels tall, with rounded 6 pixel corners. The playhead is the only violet element, so the eye finds it at once." },
+            { at: 9, label: "Timeline, scrolled", frame: null, text: "" },
+            { at: 12, label: "Export dialog", frame: null, text: "Export opens as a centred dialog about 480 pixels wide, with format and quality as two plain selects and one primary button." },
+          ],
+        },
       },
     },
     {

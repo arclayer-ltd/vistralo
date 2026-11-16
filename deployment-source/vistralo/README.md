@@ -1,6 +1,6 @@
 # Vistralo app
 
-Record a flow, upload a video or screenshots, or point at a website. Vistralo finds every screen, writes one spoken line per screen with a vision model, voices it with HeyGen, and freezes the video on each screen while its line plays. For websites it also reads the page's code in headless Chrome, so the narration can name the real libraries behind each effect.
+Record a flow, upload a video or screenshots, or point at a website. Vistralo finds every screen, writes one spoken line per screen with a vision model, voices it with OpenAI text-to-speech, and freezes the video on each screen while its line plays. For websites it also reads the page's code in headless Chrome, so the narration can name the real libraries behind each effect.
 
 ## Parts
 
@@ -42,7 +42,7 @@ Run only one worker.
 
 ## Providers
 
-The director script uses OpenAI (`VISTRALO_DIRECTOR_MODEL`, default `gpt-5-mini`, falling back on rate limits); speech uses HeyGen. See [docs/PROVIDERS.md](docs/PROVIDERS.md). Legal notices are drafts: [docs/legal](docs/legal/README.md).
+The director script uses OpenAI (`VISTRALO_DIRECTOR_MODEL`, default `gpt-5-mini`, falling back on rate limits); speech uses OpenAI `gpt-4o-mini-tts`. See [docs/PROVIDERS.md](docs/PROVIDERS.md). Legal notices are drafts: [docs/legal](docs/legal/README.md).
 
 ## Plans and payments
 

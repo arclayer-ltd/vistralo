@@ -20,9 +20,11 @@ import {
   formatBytes,
   formatDuration,
   publicWebsite,
+  reviewScriptPreferred,
   validateVideo,
 } from "./flow-utils";
 import { BuildBrief } from "./BuildBrief";
+import { WalkthroughScript } from "./WalkthroughScript";
 import { downloadAgentKit } from "../agent-kit";
 import "./features.css";
 
@@ -211,7 +213,8 @@ export function ProjectDetail({
     [briefDirty, setBriefDirty] = useState(false),
     [briefMode, setBriefMode] = useState<"edit" | "preview">("preview");
   const [script, setScript] = useState(""),
-    [scriptDirty, setScriptDirty] = useState(false);
+    [scriptDirty, setScriptDirty] = useState(false),
+    [draftDirty, setDraftDirty] = useState(false);
   const [source, setSource] = useState(""),
     [duration, setDuration] = useState<number | null>(null),
     [durationError, setDurationError] = useState("");
@@ -401,14 +404,14 @@ export function ProjectDetail({
     };
   }, [source, project.id, adapter]);
   useEffect(() => {
-    if (!briefDirty && !planDirty && !uploadProgress) return;
+    if (!briefDirty && !planDirty && !scriptDirty && !draftDirty && !uploadProgress) return;
     const prevent = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
-  }, [briefDirty, planDirty, uploadProgress]);
+  }, [briefDirty, planDirty, scriptDirty, draftDirty, uploadProgress]);
 
   async function action(
     label: string,
@@ -438,7 +441,7 @@ export function ProjectDetail({
       return;
     }
     if (
-      (briefDirty || planDirty) &&
+      (briefDirty || planDirty || scriptDirty || draftDirty) &&
       !(await confirmDialog({
         title: "Discard unsaved edits?",
         message: "You have edits in this project that are not saved yet.",
@@ -606,8 +609,14 @@ export function ProjectDetail({
               onClick={() =>
                 void action(
                   "Adding voice-over",
-                  () => adapter.rpc("voiceover", { id: project.id }),
-                  "Voice-over started. Vistralo is writing the narration from the video.",
+                  () =>
+                    adapter.rpc("voiceover", {
+                      id: project.id,
+                      review: reviewScriptPreferred(),
+                    }),
+                  reviewScriptPreferred()
+                    ? "Vistralo is writing the narration. It stops for you to read it before the voice is added."
+                    : "Voice-over started. Vistralo is writing the narration from the video.",
                 )
               }
             >
@@ -648,7 +657,11 @@ export function ProjectDetail({
                 onClick={() =>
                   void action(
                     "Adding voice-over",
-                    () => adapter.rpc("voiceover", { id: project.id }),
+                    () =>
+                      adapter.rpc("voiceover", {
+                        id: project.id,
+                        review: reviewScriptPreferred(),
+                      }),
                     "Voice-over restarted. The recording is preserved.",
                   )
                 }
@@ -667,7 +680,6 @@ export function ProjectDetail({
                       adapter.rpc("walkthrough", {
                         id: project.id,
                         url: project.url,
-                        viewports: [{ width: 1440, height: 900 }],
                       }),
                     "Website capture restarted.",
                   )
@@ -792,6 +804,21 @@ export function ProjectDetail({
         >
           {tab === "overview" && (
             <>
+              {project.type === "walkthrough" &&
+                project.data.walkthroughDraft &&
+                project.data.scriptApproved !== true && (
+                  <WalkthroughScript
+                    adapter={adapter}
+                    project={project}
+                    disabled={processing}
+                    onDirty={setDraftDirty}
+                    onDone={async () => {
+                      await refresh(false, true);
+                      onChanged();
+                    }}
+                    notify={notify}
+                  />
+                )}
               {previewFile ? (
                 <div className="flow-overview">
                   <div className="flow-video">
@@ -1223,61 +1250,6 @@ export function ProjectDetail({
                   Save and render
                 </button>
               </div>
-              <details className="flow-stack">
-                <summary>Import a timed transcript</summary>
-                <p className="flow-caption flow-muted">
-                  Import a JSON array of words, or an object with a words array.
-                  Each word needs text, start and end fields in seconds. Review
-                  the resulting cuts before rendering. Maximum 2 MB.
-                </p>
-                <input
-                  className="field"
-                  type="file"
-                  accept=".json,application/json"
-                  disabled={processing || !source || !duration}
-                  aria-label="Import transcript JSON"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = "";
-                    if (!file) return;
-                    void action(
-                      "Importing transcript",
-                      async () => {
-                        if (file.size > 2_000_000)
-                          throw new Error("Transcript must be under 2 MB.");
-                        const parsed = JSON.parse(await file.text()),
-                          words = Array.isArray(parsed) ? parsed : parsed.words;
-                        if (
-                          !Array.isArray(words) ||
-                          !words.length ||
-                          words.length > 50000 ||
-                          words.some(
-                            (word) =>
-                              !word ||
-                              typeof word.text !== "string" ||
-                              !Number.isFinite(word.start) ||
-                              !Number.isFinite(word.end) ||
-                              word.start < 0 ||
-                              word.end <= word.start ||
-                              (duration && word.end > duration + 0.001),
-                          )
-                        )
-                          throw new Error(
-                            "Every transcript word needs text and valid start/end seconds within the source duration.",
-                          );
-                        await adapter.rpc("transcript", {
-                          id: project.id,
-                          source,
-                          words,
-                        });
-                        dirtyPlan.current = false;
-                        setPlanDirty(false);
-                      },
-                      "Transcript imported. Review the proposed trim plan before rendering.",
-                    );
-                  }}
-                />
-              </details>
             </>
           )}
           {tab === "brief" && (

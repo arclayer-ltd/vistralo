@@ -111,6 +111,8 @@ export interface UploadOptions {
    * original: keep the video's own audio.
    */
   voice?: "microphone" | "ai" | "original";
+  /** With an AI voice: write the script and stop, so the owner can edit it before it is voiced. */
+  review?: boolean;
 }
 export interface UploadResult {
   file: string;

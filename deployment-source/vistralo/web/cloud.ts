@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { WorkspaceAdapter, Project, ProjectDetail, CreateProjectInput, ProjectPatch, UploadOptions, WorkspaceSettings, ShareLink } from './contracts';
 import { uuid } from './id';
+import { walkthroughScriptEdit } from './features/flow-utils';
+import { filesToCopy, projectPrefix, remapPaths } from './features/duplicate';
 import { abortIfNeeded, checksum } from './checksum';
 import { posterFrame } from './poster';
 import { billingConfig } from './billing/config';
@@ -133,7 +135,29 @@ export class CloudAdapter implements WorkspaceAdapter {
   async create(input:CreateProjectInput){const account=await cloudAccount();await this.guard('projects');const id=uuid();const p:Project={id,name:input.name,type:input.type||(input.source==='web'?'brief':'walkthrough'),source:input.source,url:input.url,status:'draft',access:'private',created:now(),updated:now(),eventAt:now(),eventLabel:'Updated',data:{files:{}}};await this.limited('projects',await required().from('vistralo_projects').insert({id,owner_id:account.user_id,document:p}));return p;}
   private async save(id:string,mutate:(p:Project)=>Project){const row=await this.row(id);const p=mutate(row.document);p.updated=now();const saved=unwrap(await required().from('vistralo_projects').update({document:p,updated_at:p.updated}).eq('id',id).eq('updated_at',row.updated_at).select('id'));if(!saved.length)throw Error('This project changed in another session. Refresh and try again.');return this.sign(p);}
   async update(id:string,patch:ProjectPatch){if(patch.access&&patch.access!=='private')throw Error('Use a read-only share link to grant access.');return this.save(id,p=>({...p,...patch,eventLabel:patch.lastOpened?'Updated':'Edited',eventAt:patch.lastOpened?p.eventAt:now()}));}
-  async duplicate(id:string){const original=await this.row(id);if(Object.keys(original.document.data.files||{}).length)throw Error('Duplicate a media project by uploading its source into a new project. Originals stay private.');const next=await this.create({...original.document,name:original.document.name+' (copy)'});return this.save(next.id,p=>({...p,data:structuredClone(original.document.data)}));}
+  // The copy gets its own files: each object is copied inside storage into the new project's folder
+  // (nothing passes through the browser), and every stored path is rewritten to point there.
+  // If any step fails, the copied objects and the new project are removed again.
+  async duplicate(id:string){
+    const original=await this.row(id);const doc=original.document;
+    if(['uploading','queued','processing'].includes(doc.status))throw Error('Wait for this project to finish uploading or processing, then duplicate it.');
+    if(doc.trashed)throw Error('Restore this project before duplicating it.');
+    const next=await this.create({name:(doc.name+' (copy)').slice(0,120),source:doc.source,type:doc.type,url:doc.url});
+    const from=projectPrefix(original.owner_id,id),to=projectPrefix(original.owner_id,next.id);
+    const copied:string[]=[];
+    try{
+      for(const file of filesToCopy(doc.data.files,ownPoster(doc)?doc.thumbnail:undefined,from)){
+        const target=to+file.slice(from.length);
+        unwrap(await required().storage.from('vistralo-media').copy(file,target));copied.push(target);
+      }
+      return await this.save(next.id,p=>({...remapPaths({...doc,data:structuredClone(doc.data)},from,to),id:next.id,name:p.name,created:p.created,access:'private',collaborators:undefined,pinned:false,lastOpened:undefined,trashed:false,trashedAt:undefined,progress:undefined,error:doc.status==='failed'?doc.error:undefined,eventLabel:'Updated',eventAt:now()}));
+    }catch(error){
+      if(copied.length)await required().storage.from('vistralo-media').remove(copied).catch(()=>{});
+      await this.save(next.id,p=>({...p,trashed:true,trashedAt:now()})).catch(()=>{});
+      await required().from('vistralo_projects').delete().eq('id',next.id).then(()=>{},()=>{});
+      throw Error('The project could not be duplicated: '+((error as Error).message||'storage copy failed')+'. Nothing was changed.');
+    }
+  }
   async trash(ids:string[]){for(const id of ids){await this.save(id,p=>({...p,trashed:true,trashedAt:now()}));unwrap(await required().from('vistralo_shares').update({revoked:true}).eq('project_id',id));}}
   async restore(ids:string[]){await this.guard('projects');this.billing=null;for(const id of ids)await this.save(id,p=>({...p,trashed:false,trashedAt:undefined}));}
   async remove(ids:string[]){for(const id of ids){const row=await this.row(id);if(!row.document.trashed)throw Error('Move the project to Trash first.');const files=[...new Set([...Object.keys(row.document.data.files||{}),...(ownPoster({...row.document,id})?[row.document.thumbnail!]:[])])];if(files.length)unwrap(await required().storage.from('vistralo-media').remove(files));unwrap(await required().from('vistralo_projects').delete().eq('id',id));}}
@@ -225,7 +249,7 @@ export class CloudAdapter implements WorkspaceAdapter {
       const voiceover=options.voice==='ai'||(saved.document.source==='screen'&&options.voice!=='original');
       if(voiceover){
         if(!await this.workerReady())return {file:target,sha256:digest,voice:'offline' as const};
-        await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:id,owner_id:account.user_id,kind:'narrate',payload:{auto:true}}));
+        await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:id,owner_id:account.user_id,kind:'narrate',payload:{auto:true,...(options.review?{review:true}:{})}}));
         await this.save(id,p=>({...p,status:'queued'}));
         return {file:target,sha256:digest,voice:'queued' as const};
       }
@@ -260,7 +284,9 @@ export class CloudAdapter implements WorkspaceAdapter {
       if(kind==='website')await this.guard('jobs');
       if(kind==='render'&&args.action!=='render'&&args.action!=='remux')throw Error('Only trim rendering and MP4 previews are supported in this cloud workspace.');
       if(kind==='render'&&args.action==='remux'&&!row.document.video)throw Error('Upload a source video before creating an MP4 preview.');
-      const payload=kind==='website'?{url:args.url,viewports:args.viewports,narrate:args.narrate===true}:args.action==='remux'?{mode:'preview'}:{plan:row.document.data.editPlan};
+      // A retry sends only the URL; it keeps the viewports and the narration choice of the project's last capture.
+      const last=kind==='website'&&!Array.isArray(args.viewports)?unwrap(await required().from('vistralo_jobs').select('payload').eq('project_id',args.id).eq('kind','website').order('created_at',{ascending:false}).limit(1))[0]?.payload:null;
+      const payload=kind==='website'?{url:args.url,viewports:Array.isArray(args.viewports)?args.viewports:last?.viewports,narrate:typeof args.narrate==='boolean'?args.narrate===true:last?.narrate===true}:args.action==='remux'?{mode:'preview'}:{plan:row.document.data.editPlan};
       const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind,payload}).select().single());
       await this.save(args.id,p=>({...p,status:'queued',error:undefined}));return job as T;
     }
@@ -271,9 +297,9 @@ export class CloudAdapter implements WorkspaceAdapter {
     }
     if(method==='providerSettings'){
       const account=await cloudAccount();
-      const rows=unwrap(await required().from('vistralo_provider_settings').select('voice_id,cost_cap_usd,openai_configured,heygen_configured').eq('owner_id',account.user_id));
+      const rows=unwrap(await required().from('vistralo_provider_settings').select('voice_id,cost_cap_usd,openai_configured').eq('owner_id',account.user_id));
       const row:any=rows[0]||{};
-      return {openai:!!row.openai_configured,heygen:!!row.heygen_configured,voiceId:row.voice_id||'',cap:Number(row.cost_cap_usd??1),workerKey:!!await this.workerKey()} as T;
+      return {openai:!!row.openai_configured,voiceId:row.voice_id||'',cap:Number(row.cost_cap_usd??1),workerKey:!!await this.workerKey()} as T;
     }
     if(method==='providerSave'){
       const account=await cloudAccount();
@@ -283,7 +309,8 @@ export class CloudAdapter implements WorkspaceAdapter {
       const seal=async(value:unknown)=>typeof value==='string'&&value.trim()?await this.seal(value.trim()):'';
       unwrap(await required().rpc('vistralo_save_provider_settings',{
         p_openai:await seal(args.openai),
-        p_heygen:await seal(args.heygen),
+        // Speech moved to OpenAI; the old HeyGen column is left as it is and no longer read.
+        p_heygen:'',
         p_voice:String(args.voiceId||''),
         p_cap:cap,
       }));
@@ -300,7 +327,24 @@ export class CloudAdapter implements WorkspaceAdapter {
       if(row.document.trashed)throw Error('Restore this project first.');
       if(!row.document.video)throw Error('Upload a recording before adding an AI voice-over.');
       await this.guard('jobs');
-      const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind:'narrate',payload:{auto:true}}).select().single());
+      const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind:'narrate',payload:{auto:true,...(args.review===true?{review:true}:{})}}).select().single());
+      await this.save(args.id,p=>({...p,status:'queued',error:undefined}));
+      return job as T;
+    }
+    if(method==='walkthroughScriptSave'){
+      const row=await this.row(args.id);const draft=row.document.data.walkthroughDraft;
+      if(!draft||!Array.isArray(draft.stops))throw Error('There is no script to edit yet.');
+      const edited=walkthroughScriptEdit(draft,args.stops,args.closing);
+      return await this.save(args.id,p=>({...p,eventLabel:'Edited',eventAt:now(),data:{...p.data,walkthroughDraft:{...p.data.walkthroughDraft,...edited},scriptApproved:false}})) as T;
+    }
+    if(method==='walkthroughApprove'){
+      if(!await this.workerReady())throw Error('The capture and render worker is offline. Your script is saved; try again when it reconnects.');
+      const row=await this.row(args.id);const draft=row.document.data.walkthroughDraft;
+      if(row.document.trashed)throw Error('Restore this project first.');
+      if(!draft||!Array.isArray(draft.stops)||!draft.stops.length)throw Error('There is no script to voice yet.');
+      if(![...draft.stops.map((s:{text?:string})=>s.text),draft.closing].some(t=>String(t||'').trim()))throw Error('Every screen is silent. Write narration for at least one screen.');
+      await this.guard('jobs');
+      const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind:'narrate',payload:{auto:true,approved:true}}).select().single());
       await this.save(args.id,p=>({...p,status:'queued',error:undefined}));
       return job as T;
     }

@@ -43,7 +43,8 @@ async function main() {
     await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
     await workspace(page).click();
     assert.equal(await page.getByRole('menuitem', {name:'Plan and billing', exact:true}).count(), 0);
-    assert.equal(await workspace(page).locator('small').innerText(), 'Free plan');
+    // No plan name either: the demo workspace is labelled as the demo.
+    assert.equal(await workspace(page).locator('small').innerText(), 'Demo');
     await page.keyboard.press('Escape');
     await page.locator('.rail-footer').getByRole('button', {name:'Settings', exact:true}).click();
     assert.equal(await page.getByRole('tab', {name:'Billing', exact:true}).count(), 0);
