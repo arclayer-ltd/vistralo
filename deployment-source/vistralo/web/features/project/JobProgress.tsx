@@ -5,6 +5,7 @@ import type {
   WorkspaceAdapter,
 } from "../../contracts";
 import type { ProjectAction } from "./useProjectDetail";
+import { reviewScriptPreferred } from "../flow-utils";
 
 export function JobFailure({
   project,
@@ -32,7 +33,7 @@ export function JobFailure({
             onClick={() =>
               void action(
                 "Adding voice-over",
-                () => adapter.rpc("voiceover", { id: project.id }),
+                () => adapter.rpc("voiceover", { id: project.id, review: reviewScriptPreferred() }),
                 "Voice-over restarted. The recording is preserved.",
               )
             }

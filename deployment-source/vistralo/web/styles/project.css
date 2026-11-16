@@ -654,3 +654,66 @@ main:has(> .project-detail) {
   block-size: var(--icon-small);
   margin-block-start: var(--border-width);
 }
+
+/* Reviewing a drafted walkthrough script: one row per screen, its still beside its words. */
+.walkthrough-script {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block-end: var(--space-6);
+  border-block-end: var(--border-width) solid var(--divider);
+}
+.walkthrough-script h2 {
+  font-size: var(--font-section);
+  line-height: var(--line-section);
+}
+.walkthrough-count {
+  margin: 0;
+  color: var(--fg-3);
+}
+.walkthrough-stops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.walkthrough-stops li {
+  display: grid;
+  grid-template-columns: var(--evidence-thumb-width) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.walkthrough-stops li.no-still {
+  grid-template-columns: minmax(0, 1fr);
+}
+.walkthrough-stops img {
+  inline-size: 100%;
+  aspect-ratio: var(--thumbnail-ratio);
+  object-fit: cover;
+  object-position: top;
+  border: var(--border-width) solid var(--divider);
+  border-radius: var(--radius-primary);
+}
+.walkthrough-stop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+.walkthrough-stop time {
+  font-variant-numeric: tabular-nums;
+}
+.walkthrough-stop textarea {
+  inline-size: 100%;
+  padding: var(--space-3);
+  font-size: var(--font-body);
+  line-height: var(--line-card);
+  resize: vertical;
+}
+@media (max-width: 767px) {
+  .walkthrough-stops li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

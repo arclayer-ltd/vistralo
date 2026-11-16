@@ -11,7 +11,7 @@ function load(entry, globals = {}) {
   vm.runInNewContext(bundled, {module,exports:module.exports,URL,File,Blob,Date,setTimeout,clearTimeout,...globals});
   return module.exports;
 }
-const {buildClipPlan,validateVideo,publicWebsite,MAX_UPLOAD_BYTES} = load('flow-utils');
+const {buildClipPlan,validateVideo,publicWebsite,MAX_UPLOAD_BYTES,walkthroughScriptEdit,STOP_TEXT_LIMIT} = load('flow-utils');
 
 test('reviewed trim plan keeps selected source, exact end boundary and chronological adjacent clips',()=>{
   const edits = [{start:'0',end:'2.25'},{start:'2.25',end:'4.125'}];
@@ -79,4 +79,26 @@ test('the recorder names an audio codec only when there is audio to record',()=>
   assert.equal(recorderMime(false,true,firefox),'video/webm;codecs=vp8,opus');
   assert.equal(recorderMime(true,true,()=>true),'video/webm;codecs=vp8,opus');
   assert.equal(recorderMime(false,false,type=>type==='video/mp4'),'video/mp4');
+});
+
+test('reviewed script edits keep every screen and its timing, and change only the words', () => {
+  const draft = {stops:[{at:0,label:'Hero',text:'Old hero line.',frame:'u/p/j/a.jpg',build:{effect:'x'}},{at:4.5,label:'Cards',text:'Old cards line.'}]};
+  const edited = walkthroughScriptEdit(draft, [{text:'  New   hero\n line. '},{text:''}], ' Closing words. ');
+  assert.equal(edited.stops.length, 2);
+  assert.equal(edited.stops[0].text, 'New hero line.');
+  assert.equal(edited.stops[0].at, 0);
+  assert.equal(edited.stops[0].frame, 'u/p/j/a.jpg');
+  assert.deepEqual(edited.stops[0].build, {effect:'x'});
+  assert.equal(edited.stops[1].text, '', 'an emptied screen stays, silent');
+  assert.equal(edited.closing, 'Closing words.');
+  assert.equal(draft.stops[0].text, 'Old hero line.', 'the saved draft is not mutated');
+});
+
+test('reviewed script edits refuse a changed screen count and over-long parts', () => {
+  const draft = {stops:[{at:0,text:'a'},{at:1,text:'b'}]};
+  assert.throws(() => walkthroughScriptEdit(draft, [{text:'only one'}], ''), /changed while you were editing/);
+  assert.throws(() => walkthroughScriptEdit(draft, 'not a list', ''), /changed while you were editing/);
+  assert.throws(() => walkthroughScriptEdit(draft, [{text:'x'.repeat(STOP_TEXT_LIMIT + 1)},{text:''}], ''), /Screen 1 is longer/);
+  assert.throws(() => walkthroughScriptEdit(draft, [{text:''},{text:''}], 'y'.repeat(STOP_TEXT_LIMIT + 1)), /closing is longer/);
+  assert.doesNotThrow(() => walkthroughScriptEdit(draft, [{text:'x'.repeat(STOP_TEXT_LIMIT)},{text:null}], ''));
 });

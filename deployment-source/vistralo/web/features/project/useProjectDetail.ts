@@ -33,7 +33,8 @@ export function useProjectDetail(
     [briefDirty, setBriefDirty] = useState(false),
     [briefMode, setBriefMode] = useState<"edit" | "preview">("preview");
   const [script, setScript] = useState(""),
-    [scriptDirty, setScriptDirty] = useState(false);
+    [scriptDirty, setScriptDirty] = useState(false),
+    [draftDirty, setDraftDirty] = useState(false);
   const [source, setSource] = useState(""),
     [duration, setDuration] = useState<number | null>(null),
     [durationError, setDurationError] = useState("");
@@ -188,14 +189,14 @@ export function useProjectDetail(
     };
   }, [source, project.id, adapter]);
   useEffect(() => {
-    if (!briefDirty && !planDirty && !uploadProgress) return;
+    if (!briefDirty && !planDirty && !scriptDirty && !draftDirty && !uploadProgress) return;
     const prevent = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", prevent);
     return () => window.removeEventListener("beforeunload", prevent);
-  }, [briefDirty, planDirty, uploadProgress]);
+  }, [briefDirty, planDirty, scriptDirty, draftDirty, uploadProgress]);
 
   async function action(
     label: string,
@@ -225,7 +226,7 @@ export function useProjectDetail(
       return;
     }
     if (
-      (briefDirty || planDirty) &&
+      (briefDirty || planDirty || scriptDirty || draftDirty) &&
       !(await confirmDialog({
         title: "Discard unsaved edits?",
         message: "You have edits in this project that are not saved yet.",
@@ -317,6 +318,7 @@ export function useProjectDetail(
     setScript,
     scriptDirty,
     setScriptDirty,
+    setDraftDirty,
     source,
     setSource,
     duration,

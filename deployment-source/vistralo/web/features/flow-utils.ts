@@ -2,6 +2,45 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 ** 3;
 export const MAX_CLOUD_UPLOAD_BYTES = 50 * 1024 ** 3;
 export const MAX_BROWSER_RECORDING_BYTES = 1024 ** 3;
 
+/** Whether this browser asks for the script to be reviewed before it is voiced (on unless turned off). */
+export const REVIEW_SCRIPT_KEY = "vistralo-review-script";
+export function reviewScriptPreferred(): boolean {
+  try {
+    return localStorage.getItem(REVIEW_SCRIPT_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+/** The most a reviewed walkthrough stop may say; the worker enforces the same limit. */
+export const STOP_TEXT_LIMIT = 2000;
+
+export type WalkthroughStop = { at: number; label?: string; text?: string; frame?: string | null };
+
+/**
+ * Applies the owner's edits to a drafted walkthrough script. Every screen keeps its place and
+ * timing; only the words change. An empty stop is silent, and the film plays through it.
+ */
+export function walkthroughScriptEdit<S extends WalkthroughStop>(
+  draft: { stops: S[] },
+  stops: unknown,
+  closing: unknown,
+): { stops: S[]; closing: string } {
+  if (!Array.isArray(stops) || stops.length !== draft.stops.length)
+    throw new Error("The script changed while you were editing. Reload the project and try again.");
+  const clean = (value: unknown) => String(value ?? "").replace(/\s+/g, " ").trim();
+  const texts = stops.map((stop) => clean((stop as { text?: unknown } | null)?.text));
+  const closingText = clean(closing);
+  const long = [...texts, closingText].findIndex((text) => text.length > STOP_TEXT_LIMIT);
+  if (long >= 0)
+    throw new Error(
+      long < texts.length
+        ? `Screen ${long + 1} is longer than ${STOP_TEXT_LIMIT} characters.`
+        : `The closing is longer than ${STOP_TEXT_LIMIT} characters.`,
+    );
+  return { stops: draft.stops.map((stop, i) => ({ ...stop, text: texts[i] })), closing: closingText };
+}
+
 export function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
