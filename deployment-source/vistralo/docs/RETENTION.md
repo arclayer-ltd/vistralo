@@ -66,6 +66,40 @@ On the worker host:
 - After a job ends, list the data root: `set -a && . /etc/vistralo-worker.env && set +a && ls "$VISTRALO_CLOUD_DATA_ROOT"`. Between jobs it should hold only `worker-key.pem` and `projects.sqlite` (with its `-wal` and `-shm` files), and no folders named like `1b2c3d4e-....`.
 - `journalctl -u vistralo-worker | grep "Could not remove the working copy"` lists any copy the worker failed to delete, with the reason. The next start-up clears it.
 
+## The processing server's log
+
+The worker writes its log to the systemd journal on the processing server (`journalctl -u vistralo-worker`). The log is kept for **up to 1 month**, once the owner adds the setting below.
+
+**What it logs:** job IDs and kinds (`Claimed render 6f1c…`, `Finished …`, `Cancelled …`), error messages when a job or step fails, counts and sizes from the clear-ups, and, for each project the retention sweep deletes, its ID, owner ID and dates. It never logs recording contents, scripts, keys or passwords. Some error messages can repeat part of what went wrong:
+- A website that fails to load can put its address in the message, including any query string, cut at 120 characters (`Build read failed (the page did not load: … at https://…)`, and `Job failed …`).
+- An FFmpeg failure adds the last lines FFmpeg printed. That is usually just the error, but it can include tags stored in an uploaded video file, such as its title.
+- Each line also has the time it was written.
+
+### Capping the log at 1 month (owner)
+
+On the worker host, as root:
+
+1. **Add a journald setting:**
+   ```bash
+   mkdir -p /etc/systemd/journald.conf.d && printf '[Journal]\nMaxRetentionSec=2week\nMaxFileSec=1week\n' > /etc/systemd/journald.conf.d/vistralo.conf && systemctl restart systemd-journald
+   ```
+   journald deletes whole journal files, and only once the newest line in a file is older than `MaxRetentionSec`. With files of at most a week (`MaxFileSec`), the oldest line kept is about 2 to 4 weeks old, so never more than a month. `MaxRetentionSec=1month` on its own would not be enough: the default file length is also a month, so lines could stay for about 2 months. This applies to the whole journal on the host, not only the worker.
+2. **Trim what is already there**, once:
+   ```bash
+   journalctl --rotate && journalctl --vacuum-time=2weeks
+   ```
+3. **If rsyslog is installed**, it copies every journal line into `/var/log/syslog`, which has its own rotation. Check with `systemctl is-active rsyslog`. If it says `active`, stop it from copying the worker's lines (other services are not affected):
+   ```bash
+   printf ':programname, isequal, "vistralo-worker" stop\n' > /etc/rsyslog.d/10-vistralo-worker.conf && systemctl restart rsyslog
+   ```
+   Older copies already in `/var/log/syslog*` go when logrotate removes those files. `grep -l vistralo-worker /var/log/syslog*` shows which still hold any.
+
+### Checking it
+
+- `systemd-analyze cat-config systemd/journald.conf | grep -A3 vistralo` shows the setting is loaded.
+- `journalctl -u vistralo-worker --no-pager -o short-iso | head -1` shows the oldest worker line kept. A few weeks after step 1 it should never be more than a month old.
+- `journalctl --disk-usage` shows how much the journal holds.
+
 ## What the app shows
 
 When the switch is on, each card and the project page say **"Deleted on 17 Feb 2027"**. In the last 7 days the card turns amber with a warning sign ("Deleted in 4 days", "Deleted tomorrow"). The project page then shows a warning box under the title. Past the date, until the next sweep, it says "Being deleted". The demo workspace shows the rule as if the switch were on. There is no email: the app has no email sending of its own (Supabase Auth sends only sign-in mail). A reminder email a week ahead is a follow-up.
