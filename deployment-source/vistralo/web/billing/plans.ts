@@ -234,5 +234,8 @@ export function planLimit(state: BillingState, kind: LimitKind): PlanLimitError 
   return new PlanLimitError(kind, `${title}. ${body}`);
 }
 
-/** Create flows that queue an AI walkthrough or website analysis. */
-export const AI_FLOWS = new Set(["ai-walkthrough", "narrate-video", "narrate-screenshots", "website"]);
+/**
+ * Create flows that queue a job counted against the month's allowance. Saving a recording, video
+ * or images queues nothing paid; recording a website is the one job a create flow starts.
+ */
+export const AI_FLOWS = new Set(["website"]);

@@ -29,8 +29,8 @@ export function RecordFlow({
               label="Record my voice"
               hint={
                 (microphone
-                  ? "Your microphone is the audio in the recording. Saving it keeps your voice and does not start AI narration."
-                  : "Leave it off and Create Walkthrough adds an AI voice after you save.") +
+                  ? "Talk as you go. Your microphone is the sound in the recording."
+                  : "Off: the video is silent, and you can add an AI walkthrough after it's saved.") +
                 (!microphoneSupported
                   ? " This browser cannot use a microphone here."
                   : "")
@@ -70,7 +70,7 @@ export function RecordFlow({
             </li>
             <li>
               <Icon name="record" />
-              Stop, and it saves as a project
+              Stop, and it saves to Vistralo
             </li>
           </ol>
           <p className="flow-caption flow-muted">

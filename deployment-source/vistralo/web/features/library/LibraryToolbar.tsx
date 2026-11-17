@@ -7,6 +7,7 @@ import {
   type MenuAction,
 } from "../../components/Primitives";
 import type { LibraryView, libraryLabels } from "./useLibrary";
+import { KIND_LABELS, type ProjectKind } from "../flow-utils";
 
 type Labels = ReturnType<typeof libraryLabels>;
 
@@ -97,40 +98,30 @@ export function LibraryToolbar({
       onClick: () => setOrder("asc"),
     },
   );
+  // One filter, named like the create actions: what each project was made from.
   const filterItems: MenuAction[] = [
     {
-      label: "All types",
+      label: "All projects",
       role: "menuitemradio",
       checked: type === "all",
-      onClick: () => setType("all"),
+      onClick: () => {
+        setType("all");
+        setSource("all");
+      },
     },
-    {
-      label: "Walkthrough",
-      role: "menuitemradio",
-      checked: type === "walkthrough",
-      onClick: () => setType("walkthrough"),
-    },
-    {
-      label: "Visual brief",
-      role: "menuitemradio",
-      checked: type === "brief",
-      onClick: () => setType("brief"),
-    },
-    ...["all", "screen", "web", "upload"].map((s, i) => ({
-      label: (
-        {
-          all: "All sources",
-          screen: "Screen recording",
-          web: "Website",
-          upload: "Uploaded video",
-        } as any
-      )[s],
+    ...(Object.keys(KIND_LABELS) as ProjectKind[]).map((kind, i) => ({
+      label: KIND_LABELS[kind].many,
+      icon: KIND_LABELS[kind].icon,
       role: "menuitemradio" as const,
-      checked: source === s,
+      checked: type === kind,
       separator: i === 0,
-      onClick: () => setSource(s),
+      onClick: () => {
+        setType(kind);
+        setSource("all");
+      },
     })),
   ];
+  const kindName = type === "all" ? "All projects" : KIND_LABELS[type as ProjectKind]?.many || "All projects";
   const sortName =
     sort === "updated" ? "Last updated" : sort === "created" ? "Date created" : "Name";
   const sortOrder =
@@ -184,39 +175,16 @@ export function LibraryToolbar({
         <div className="menu-anchor filter-select">
           <button
             className="button"
-            aria-label={`Type filter: ${type}`}
+            aria-label={`Show: ${kindName}`}
             aria-haspopup="menu"
             aria-expanded={filterMenu === "type"}
             onClick={() => setFilterMenu(filterMenu === "type" ? "" : "type")}
           >
-            Type
+            {kindName}
             <Icon name="chevronDown" size={16} />
           </button>
           {filterMenu === "type" && (
-            <Menu
-              items={filterItems.slice(0, 3)}
-              onClose={() => setFilterMenu("")}
-            />
-          )}
-        </div>
-        <div className="menu-anchor filter-select">
-          <button
-            className="button"
-            aria-label={`Source filter: ${source}`}
-            aria-haspopup="menu"
-            aria-expanded={filterMenu === "source"}
-            onClick={() =>
-              setFilterMenu(filterMenu === "source" ? "" : "source")
-            }
-          >
-            Source
-            <Icon name="chevronDown" size={16} />
-          </button>
-          {filterMenu === "source" && (
-            <Menu
-              items={filterItems.slice(3)}
-              onClose={() => setFilterMenu("")}
-            />
+            <Menu items={filterItems} onClose={() => setFilterMenu("")} />
           )}
         </div>
         <div className="menu-anchor merged-filter">
@@ -228,9 +196,7 @@ export function LibraryToolbar({
           >
             <Icon name="filter" />
             <span>Filter</span>
-            {(type !== "all" || source !== "all") && (
-              <CounterBadge count={Number(type !== "all") + Number(source !== "all")} />
-            )}
+            {type !== "all" && <CounterBadge count={1} />}
           </button>
           {filterMenu === "all" && (
             <Menu items={filterItems} onClose={() => setFilterMenu("")} />

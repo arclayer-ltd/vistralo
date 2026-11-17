@@ -143,8 +143,9 @@ test('the cloud summary asks PostgREST for card fields only, never the whole doc
   const columns = SUMMARY_SELECT.split(',');
   assert.equal(columns.includes('document'), false);
   assert.equal(columns.includes('*'), false);
-  for (const heavy of ['brief', 'script', 'scriptParts', 'files', 'editPlan', 'evidence'])
-    assert.equal(SUMMARY_SELECT.includes(heavy), false, heavy + ' stays out of the library read');
+  // A heavy field is never read; small flags beside it (scriptApproved, a draft's date) may be.
+  for (const heavy of ['brief', 'script', 'scriptParts', 'files', 'editPlan', 'evidence', 'walkthroughDraft'])
+    assert.equal(columns.some(column => new RegExp(`->>?${heavy}$`).test(column)), false, heavy + ' stays out of the library read');
   assert.ok(columns.includes('name:document->>name'));
   assert.ok(columns.includes('pinned:document->pinned'), 'booleans are read as JSON, not as text');
   assert.ok(columns.includes('outputFile:document->data->output->>file'));
@@ -160,6 +161,10 @@ test('the cloud summary asks PostgREST for card fields only, never the whole doc
   assert.equal(summary.updated, at(1));
   assert.equal(summary.data.summary, true);
   assert.deepEqual(plain(summary.data.output), {file:'owner/p/out.mp4'});
+  const waiting = projectSummary({id:'r', created_at:at(0), updated_at:at(0), source:'upload', origin:'images', draftedAt:at(0), scriptApproved:false});
+  assert.equal(waiting.data.origin, 'images', 'a video made from images says so on its card');
+  assert.equal(waiting.data.draftedAt, at(0), 'a drafted script is known without reading it');
+  assert.equal(waiting.data.scriptApproved, false);
   const bare = projectSummary({id:'q', created_at:at(0), updated_at:at(0)});
   assert.deepEqual([bare.name, bare.type, bare.source, bare.status, bare.access, bare.eventLabel], ['Untitled project', 'walkthrough', 'screen', 'draft', 'private', 'Updated'], 'a sparse row still makes a usable card');
 });

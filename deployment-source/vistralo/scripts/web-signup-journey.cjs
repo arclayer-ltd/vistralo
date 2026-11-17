@@ -233,7 +233,7 @@ async function main() {
 
     // Opening the link from the email exchanges its code and creates the workspace.
     await page.goto(open.origin + '/auth/callback?code=mock-confirmation-code');
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await until(() => mock.named('GET /rest/v1/vistralo_projects').length > 0, 'the project list to be read');
     const [exchange] = mock.named('POST /auth/v1/token?grant_type=pkce');
     assert.equal(exchange.body.auth_code, 'mock-confirmation-code');
@@ -250,7 +250,7 @@ async function main() {
     await page.locator('.workspace-button small', {hasText:'Free plan'}).waitFor();
     await page.screenshot({path:path.join(evidence, 'new-workspace.png')});
     await page.reload();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     assert.equal(mock.named('POST /rest/v1/rpc/vistralo_complete_signup').length, 1, 'a reload does not create the workspace again');
     await page.context().close();
     checks.push('the confirmation link signs the person in, creates their workspace once and opens Projects on the Free plan');
@@ -259,7 +259,7 @@ async function main() {
     ({page, mock} = await start(open.origin, {confirmed:true}));
     await fill(page);
     await page.getByRole('button', {name:'Sign in', exact:true}).click();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await until(() => mock.named('GET /rest/v1/vistralo_projects').length > 0, 'the project list to be read');
     assert.equal(mock.named('POST /rest/v1/rpc/vistralo_complete_signup').length, 1);
     await page.context().close();
@@ -270,7 +270,7 @@ async function main() {
     await toSignUp(page);
     await fill(page);
     await page.getByRole('button', {name:'Create account', exact:true}).click();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await until(() => mock.named('GET /rest/v1/vistralo_projects').length > 0, 'the project list to be read');
     assert.equal(mock.named('POST /rest/v1/rpc/vistralo_complete_signup').length, 1);
     await page.context().close();
@@ -293,13 +293,13 @@ async function main() {
     await page.getByRole('button', {name:'Create account', exact:true}).click();
     await page.getByRole('heading', {name:'This account has no workspace yet', level:1, exact:true}).waitFor();
     await page.getByRole('alert').filter({hasText:'Sign-up is not open yet. Contact contact@vistralo.com for access.'}).waitFor();
-    assert.equal(await page.getByRole('heading', {name:'Projects', level:1, exact:true}).count(), 0);
+    assert.equal(await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).count(), 0);
     assert.equal(mock.named('GET /rest/v1/vistralo_projects').length, 0, 'no workspace data is read');
     await page.screenshot({path:path.join(evidence, 'no-workspace.png')});
     // Once the switch is on, Try again is enough.
     mock.world.signupOpen = true;
     await page.getByRole('button', {name:'Try again', exact:true}).click();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await page.context().close();
     checks.push('a rate limit, a rejected password and a closed sign-up switch each show their reason and leave the form usable');
 

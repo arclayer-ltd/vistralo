@@ -1,68 +1,99 @@
 import React from "react";
-import type { WorkspaceAdapter } from "../../contracts";
+import { Field } from "../../components/Controls";
+import { Icon } from "../../components/Icon";
 import { SheetToggle } from "../../components/Primitives";
+import { publicWebsite, websiteProblem } from "../flow-utils";
 
-export function WebsiteFlow({
+/**
+ * Step one of Record a website: the address. Next stays locked until it is a public http(s)
+ * address. A problem is named once the person leaves the field or asks for the next step, not
+ * on the first keystroke.
+ */
+export function WebsiteAddress({
   url,
   setUrl,
-  mobile,
-  setMobile,
-  narrate,
-  setNarrate,
+  touched,
+  setTouched,
   busy,
-  adapter,
 }: {
   url: string;
   setUrl: (url: string) => void;
+  touched: boolean;
+  setTouched: (touched: boolean) => void;
+  busy: boolean;
+}) {
+  const problem = websiteProblem(url);
+  let ready = "";
+  if (url.trim() && !problem) ready = new URL(publicWebsite(url)).host;
+  return (
+    <Field
+      label="Website address"
+      error={touched && url.trim() ? problem : touched && !url.trim() ? "Type the address of the website to record, such as example.com." : ""}
+      hint={
+        ready ? (
+          <span className="field-ready">
+            <Icon name="checkCircle" size={14} />
+            Ready to record {ready}
+          </span>
+        ) : (
+          "A public page, such as example.com. Sign-in screens and sites that block automated visits may not record."
+        )
+      }
+    >
+      <input
+        id="website-address"
+        type="text"
+        inputMode="url"
+        autoCapitalize="none"
+        autoCorrect="off"
+        autoComplete="url"
+        spellCheck={false}
+        value={url}
+        placeholder="example.com"
+        onChange={(event) => setUrl(event.target.value)}
+        onBlur={() => setTouched(true)}
+        disabled={busy}
+      />
+    </Field>
+  );
+}
+
+/** Step two: how the site is recorded. */
+export function WebsiteOptions({
+  url,
+  mobile,
+  setMobile,
+  busy,
+}: {
+  url: string;
   mobile: boolean;
   setMobile: (mobile: boolean) => void;
-  narrate: boolean;
-  setNarrate: (narrate: boolean) => void;
   busy: boolean;
-  adapter: WorkspaceAdapter;
 }) {
+  let host = url;
+  try {
+    host = new URL(publicWebsite(url)).host;
+  } catch {
+    /* Step one only lets a valid address through. */
+  }
   return (
     <>
-      <label className="field">
-        Website URL
-        <input
-          type="text"
-          inputMode="url"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          required
-          value={url}
-          placeholder="example.com"
-          onChange={(event) => setUrl(event.target.value)}
-          disabled={busy}
-          aria-describedby="website-help"
-        />
-        <small id="website-help">
-          Public pages only. Sign-in screens and sites that block
-          automated access may not be captured.
-        </small>
-      </label>
+      <p className="flow-caption flow-muted">
+        Vistralo opens {host} in its own browser, scrolls every section and records it, then
+        writes a visual brief from what it saw. The desktop view (1440 × 900) is always recorded.
+      </p>
       <div className="sheet-group">
         <SheetToggle
-          label="Include mobile viewport"
+          label="Phone view too"
+          hint={
+            mobile
+              ? "Also records the site at 390 × 844, so you can see how it adapts."
+              : "Only the desktop view is recorded."
+          }
           checked={mobile}
           onChange={setMobile}
           disabled={busy}
         />
-        {adapter.capabilities.providers && (
-          <SheetToggle
-            label="Draft an AI narration script"
-            hint={
-              narrate
-                ? "Evidence frames are sent to OpenAI to draft a script. You review and approve it before any voice is generated, and each request must fit your per-job cost cap."
-                : "No paid AI runs in this flow."
-            }
-            checked={narrate}
-            onChange={setNarrate}
-            disabled={busy}
-          />
-        )}
       </div>
     </>
   );

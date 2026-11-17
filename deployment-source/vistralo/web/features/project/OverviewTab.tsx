@@ -29,7 +29,10 @@ export function OverviewTab({
   frames,
   action,
   uploadVideo,
+  strip,
 }: {
+  /** The saved / next-step strip, shown right under the video. */
+  strip?: React.ReactNode;
   project: Project;
   adapter: WorkspaceAdapter;
   info: ProjectInfo | null;
@@ -77,6 +80,7 @@ export function OverviewTab({
               </p>
             )}
           </div>
+          {strip}
           <aside className="flow-side" aria-label="Walkthrough details">
             <dl className="flow-facts">
               <div>

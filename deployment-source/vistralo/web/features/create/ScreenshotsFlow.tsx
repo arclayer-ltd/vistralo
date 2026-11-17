@@ -50,16 +50,12 @@ export function ScreenshotsFlow({
   setShots,
   busy,
   adapter,
-  offersVoiceover,
-  siteUrlField,
   setError,
 }: {
   shots: File[];
   setShots: React.Dispatch<React.SetStateAction<File[]>>;
   busy: boolean;
   adapter: WorkspaceAdapter;
-  offersVoiceover: boolean;
-  siteUrlField: React.ReactNode;
   setError: (message: string) => void;
 }) {
   return (
@@ -73,8 +69,8 @@ export function ScreenshotsFlow({
         <span className="sheet-drop-text">
           <strong>
             {shots.length
-              ? `${shots.length} screenshot${shots.length > 1 ? "s" : ""}`
-              : "Choose screenshots"}
+              ? `${shots.length} image${shots.length > 1 ? "s" : ""}`
+              : "Choose images"}
           </strong>
           <small>
             {shots.length
@@ -86,6 +82,7 @@ export function ScreenshotsFlow({
           type="file"
           multiple
           accept="image/png,image/jpeg,image/webp"
+          aria-label="Choose images"
           disabled={busy || !adapter.capabilities.upload}
           onChange={(event) => {
             setError("");
@@ -104,7 +101,7 @@ export function ScreenshotsFlow({
               ]);
               if (next.length > MAX_SCREENSHOTS)
                 throw new Error(
-                  `Use up to ${MAX_SCREENSHOTS} screenshots in one walkthrough.`,
+                  `Use up to ${MAX_SCREENSHOTS} images in one video.`,
                 );
               setShots(next);
             } catch (failure) {
@@ -114,7 +111,7 @@ export function ScreenshotsFlow({
         />
       </label>
       {shots.length > 0 && (
-        <ol className="shot-strip" aria-label="Screenshots in order">
+        <ol className="shot-strip" aria-label="Images in order">
           {shots.map((shot, index) => (
             <ShotThumb
               key={`${shot.name}:${shot.size}`}
@@ -129,17 +126,6 @@ export function ScreenshotsFlow({
             />
           ))}
         </ol>
-      )}
-      {siteUrlField}
-      {!offersVoiceover && (
-        <p className="sheet-note">
-          <Icon name="info" />
-          <span>
-            AI narration runs in the Vistralo cloud workspace. Here
-            the screenshots are saved as a video you can play and
-            download.
-          </span>
-        </p>
       )}
     </>
   );

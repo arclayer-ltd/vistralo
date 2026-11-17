@@ -3,16 +3,6 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 ** 3;
 export const MAX_CLOUD_UPLOAD_BYTES = 50 * 1024 ** 3;
 export const MAX_BROWSER_RECORDING_BYTES = 1024 ** 3;
 
-/** Whether this browser asks for the script to be reviewed before it is voiced (on unless turned off). */
-export const REVIEW_SCRIPT_KEY = "vistralo-review-script";
-export function reviewScriptPreferred(): boolean {
-  try {
-    return localStorage.getItem(REVIEW_SCRIPT_KEY) !== "off";
-  } catch {
-    return true;
-  }
-}
-
 /** The most a reviewed walkthrough stop may say; the worker enforces the same limit. */
 export const STOP_TEXT_LIMIT = 2000;
 
@@ -68,10 +58,13 @@ export function namingData(input: {
   autoName?: boolean;
   pageTitle?: string;
   sourceName?: string;
+  origin?: string;
 }): Record<string, unknown> {
   const clean = (value?: string) =>
     typeof value === "string" && value.trim() ? value.replace(/\s+/g, " ").trim().slice(0, 300) : undefined;
   const data: Record<string, unknown> = {};
+  // A video made from images is uploaded like any other video; this is how it is told apart later.
+  if (input.origin === "images") data.origin = "images";
   if (typeof input.autoName === "boolean") data.autoName = input.autoName;
   if (clean(input.pageTitle)) data.pageTitle = clean(input.pageTitle);
   if (clean(input.sourceName)) data.sourceName = clean(input.sourceName);
@@ -86,6 +79,62 @@ export function renamed<D extends Record<string, any>>(
   return patch.name !== undefined && patch.name !== project.name
     ? { ...project.data, autoName: false }
     : project.data;
+}
+
+export type ProjectKind = "screen" | "website" | "video" | "images";
+
+/** Names Vistralo gave image projects before they were marked: "6 screenshots", "Screenshots 2026-…Z". */
+const IMAGE_NAMES = /^(\d+ screenshots?|screenshots \d{4}-\d{2}-\d{2}T[\d-]+Z)$/i;
+
+/**
+ * What a project was made from, in the words of the action that made it: a screen recording, a
+ * website, an uploaded video or a set of images.
+ */
+export function projectKind(p: {
+  source: string;
+  name?: string;
+  data?: Record<string, any> | null;
+}): ProjectKind {
+  if (p.source === "web") return "website";
+  if (p.source === "screen") return "screen";
+  if (p.data?.origin === "images" || IMAGE_NAMES.test(String(p.name || "").trim())) return "images";
+  return "video";
+}
+
+/** The name of each kind on a card, the project header and filters. */
+export const KIND_LABELS: Record<ProjectKind, { one: string; many: string; icon: string }> = {
+  screen: { one: "Screen recording", many: "Screen recordings", icon: "record" },
+  website: { one: "Website", many: "Websites", icon: "globe" },
+  video: { one: "Video", many: "Videos", icon: "video" },
+  images: { one: "Images", many: "Images", icon: "image" },
+};
+
+/** Why a typed address cannot be recorded, in a sentence, or "" when it can (or nothing is typed yet). */
+export function websiteProblem(raw: string): string {
+  if (!raw.trim()) return "";
+  try {
+    publicWebsite(raw);
+    return "";
+  } catch (failure) {
+    return errorMessage(failure);
+  }
+}
+
+const cents = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * What an AI walkthrough of a video this long is likely to cost, priced the way the worker prices
+ * it before any paid call: the script (about 10 cents plus under a cent a screen), then the voice
+ * for the words the film has room for. The screen count is a guess until the worker has looked,
+ * so this is an estimate; the worker's own check against the cost cap is what decides.
+ */
+export function aiWalkthroughEstimate(duration?: number | null) {
+  if (!duration || !Number.isFinite(duration) || duration <= 0) return null;
+  const screens = Math.min(60, Math.max(1, Math.round(duration / 6)));
+  const words = Math.round(Math.max(60, Math.min(3 * duration, 360) - duration - screens * 0.5) * 2.4);
+  const script = 0.1 + screens * 0.008;
+  const voice = Math.max(screens * 0.01, Math.max(0.01, ((words * 6) / 1000) * 0.02));
+  return { screens, script: cents(script), voice: cents(voice), total: cents(script + voice) };
 }
 
 export function formatDuration(seconds: number): string {

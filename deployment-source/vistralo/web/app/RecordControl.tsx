@@ -1,26 +1,18 @@
 import React from "react";
 import { Menu, ToolButton, type MenuAction } from "../components/Primitives";
-import {
-  createFlows,
-  flowFor,
-  materialFlows,
-  recordFlows,
-  type CreateFlow,
-} from "../features/create-flows";
+import { createFlows, flowFor, type CreateFlow } from "../features/create-flows";
 
-const STORAGE_KEY = "vistralo-record-flow";
-
-/** The way of recording that the Record button starts: the one used last, an AI walkthrough at first. */
+/**
+ * What the Record button starts. There is one way to record a screen now; whether it records
+ * your voice is a choice inside it, remembered in this browser. Kept as a function so callers
+ * that remembered a flow keep working.
+ */
 export function storedRecordFlow(): CreateFlow {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return recordFlows.some((item) => item.flow === stored)
-    ? (stored as CreateFlow)
-    : "ai-walkthrough";
+  return "screen";
 }
 
-export function rememberRecordFlow(flow: CreateFlow) {
-  if (recordFlows.some((item) => item.flow === flow))
-    localStorage.setItem(STORAGE_KEY, flow);
+export function rememberRecordFlow(_flow: CreateFlow) {
+  /* Nothing to remember: Record always records your screen. */
 }
 
 /**
@@ -35,7 +27,8 @@ export function RecordControl({
   placement,
 }: {
   flow: CreateFlow;
-  create: (flow: CreateFlow) => void;
+  /** `quick` is the Record button: straight to the browser's picker. */
+  create: (flow: CreateFlow, quick?: boolean) => void;
   menuOpen: boolean;
   onMenu: (open: boolean) => void;
   /** The rail on a computer, the top bar on a phone. */
@@ -47,7 +40,6 @@ export function RecordControl({
     description: item.description,
     icon: item.icon,
     key: item.key,
-    separator: item === materialFlows[0],
     onClick: () => create(item.flow),
   }));
   return (
@@ -61,7 +53,7 @@ export function RecordControl({
         className="button button-record button-large record-button tooltip-host"
         aria-label="Record"
         aria-description={current.label}
-        onClick={() => create(flow)}
+        onClick={() => create(flow, true)}
       >
         <span className="record-label">Record</span>
         <span className="tooltip" role="tooltip">

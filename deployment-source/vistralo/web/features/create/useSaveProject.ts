@@ -22,13 +22,8 @@ interface SaveOptions {
   file: File | null;
   shots: File[];
   mobile: boolean;
-  narrate: boolean;
-  voiceover: boolean;
-  /** With an AI voice, stop after the script so the owner can edit it before it is voiced. */
-  review: boolean;
   spoken: boolean;
   activeRecording: boolean;
-  offersVoiceover: boolean;
   mounted: RefObject<boolean>;
   setError: (message: string) => void;
   notify: (message: string, error?: boolean) => void;
@@ -46,12 +41,8 @@ export function useSaveProject({
   file,
   shots,
   mobile,
-  narrate,
-  voiceover,
-  review,
   spoken,
   activeRecording,
-  offersVoiceover,
   mounted,
   setError,
   notify,
@@ -73,13 +64,8 @@ export function useSaveProject({
     setError("");
     setBusy(true);
     try {
-      // The site address is only asked for where narration will use it; elsewhere a value left
-      // over from before the field was hidden is ignored.
-      const typed =
-        (source === "screen" && spoken) ||
-        (source === "upload" && !screenshots && !voiceover)
-          ? ""
-          : url;
+      // A recording with your voice hides the address field, so a value left from before is ignored.
+      const typed = source === "screen" && spoken ? "" : url;
       const sourceUrl =
         source === "web" || typed.trim() ? publicWebsite(typed) : undefined;
       let media = file;
@@ -115,7 +101,8 @@ export function useSaveProject({
       const projectName =
         typedName ||
         automaticName({
-          flow,
+          // The shared namer still knows the flows by their old names.
+          flow: screenshots ? "narrate-screenshots" : flow,
           source,
           url: siteForName,
           title: source === "screen" ? sharedTitle : undefined,
@@ -135,6 +122,7 @@ export function useSaveProject({
           autoName: !typedName,
           ...(source === "screen" && sharedTitle ? { pageTitle: sharedTitle.slice(0, 300) } : {}),
           ...(fileName && source === "upload" ? { sourceName: fileName.slice(0, 300) } : {}),
+          ...(screenshots ? { origin: "images" as const } : {}),
         }));
       created.current = project;
       if (source === "web") {
@@ -146,44 +134,30 @@ export function useSaveProject({
             { width: 1440, height: 900 },
             ...(mobile ? [{ width: 390, height: 844 }] : []),
           ],
-          narrate,
+          // Recording a website is free of paid AI; a walkthrough is added from the project later.
+          narrate: false,
         });
         notify(
           adapter.mode === "demo"
-            ? "Demo website analysis started. This is a local simulation."
-            : "Website analysis started. You can leave this page while it runs.",
+            ? "Demo website recording started. This is a local simulation."
+            : "Recording the website. You can leave this page while it runs.",
         );
       } else {
         controller.current = new AbortController();
         const uploaded = await adapter.upload(project.id, media!, {
           signal: controller.current.signal,
           onProgress: setProgress,
-          review,
-          ...(source === "screen" && spoken
-            ? { voice: "microphone" as const }
-            : source === "upload" && offersVoiceover
-              ? {
-                  voice:
-                    screenshots || voiceover
-                      ? ("ai" as const)
-                      : ("original" as const),
-                }
-              : {}),
+          // Saving keeps the video's own sound. Nothing paid starts until the owner adds an AI walkthrough.
+          voice: source === "screen" && spoken ? ("microphone" as const) : ("original" as const),
         });
         if (source === "screen") await clearRecording().catch(() => {});
         const voice = (uploaded as { voice?: string }).voice;
         notify(
           adapter.mode === "demo"
-            ? "Recording saved in this browser demo."
+            ? "Saved in this browser demo."
             : voice === "microphone"
-              ? "Recording saved with your voice."
-              : voice === "queued"
-              ? review
-                ? "Upload finished. Vistralo is writing the narration; open the project to read it before it is voiced."
-                : "Upload finished. Vistralo is writing the narration and adding the AI voice. This takes a few minutes."
-              : voice === "offline"
-                ? "Recording saved. The capture worker is offline, so the voice was not started."
-              : "Recording uploaded. The worker checks its checksum before processing it.",
+              ? "Saved to Vistralo with your voice."
+              : "Saved to Vistralo. Add an AI walkthrough from the project whenever you like.",
         );
       }
       let refreshed = project;

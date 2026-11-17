@@ -1,14 +1,87 @@
 import { StatusBadge } from "../../components/ProjectCard";
-import { projectTitle, statusHint } from "../../utils";
-import React from "react";
-import type { Project, WorkspaceAdapter } from "../../contracts";
+import { projectTitle, statusHint, typeText } from "../../utils";
+import React, { useEffect, useRef, useState } from "react";
+import type { Project } from "../../contracts";
 import { Icon } from "../../components/Icon";
 import { Button } from "../../components/Controls";
 import { DeletionNote } from "../../components/DeletionNote";
+import { Menu, ToolButton, type MenuAction } from "../../components/Primitives";
 import { formatDuration } from "../flow-utils";
-import type { ProjectAction } from "./useProjectDetail";
-import { reviewScriptPreferred } from "../flow-utils";
 
+/**
+ * The project's name as its page title, renamed in place: Rename (or a click on the name) turns
+ * it into a field, Enter or leaving the field saves, Escape puts the old name back.
+ */
+export function EditableTitle({
+  project,
+  onRename,
+  editing,
+  setEditing,
+}: {
+  project: Project;
+  onRename?: (name: string) => Promise<void>;
+  editing: boolean;
+  setEditing: (editing: boolean) => void;
+}) {
+  const [value, setValue] = useState(project.name);
+  const field = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!editing) setValue(project.name);
+    else requestAnimationFrame(() => field.current?.select());
+  }, [editing, project.name]);
+  async function commit() {
+    const name = value.replace(/\s+/g, " ").trim().slice(0, 120);
+    setEditing(false);
+    if (name && name !== project.name) await onRename?.(name);
+  }
+  if (editing && onRename)
+    return (
+      <input
+        ref={field}
+        className="title-field"
+        aria-label="Project name"
+        value={value}
+        maxLength={120}
+        onChange={(event) => setValue(event.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            void commit();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            setValue(project.name);
+            setEditing(false);
+          }
+        }}
+      />
+    );
+  return (
+    <h1 className="editable-title">
+      {onRename ? (
+        <button
+          type="button"
+          className="title-button"
+          aria-description="Rename"
+          title="Rename"
+          onClick={() => setEditing(true)}
+        >
+          {projectTitle(project)}
+          <Icon name="edit" size={16} />
+        </button>
+      ) : (
+        projectTitle(project)
+      )}
+    </h1>
+  );
+}
+
+/**
+ * The top of a project page, kept short so the video sits high: where you are, the name (renamed
+ * in place), what it is, and its actions. Share is the one primary action; the rest sit beside
+ * it as plain buttons and a More menu.
+ */
 export function ProjectHeader({
   project,
   voiceText,
@@ -18,6 +91,10 @@ export function ProjectHeader({
   back,
   downloadKit,
   onShare,
+  canAi,
+  onAddAi,
+  onRename,
+  more,
 }: {
   project: Project;
   voiceText: string;
@@ -28,7 +105,18 @@ export function ProjectHeader({
   downloadKit: () => Promise<void>;
   /** Present when there is something a link could show. */
   onShare?: () => void;
+  canAi?: boolean;
+  onAddAi?: () => void;
+  onRename?: (name: string) => Promise<void>;
+  /** Everything else, in the More menu. */
+  more?: MenuAction[];
 }) {
+  const [editing, setEditing] = useState(false),
+    [menu, setMenu] = useState(false);
+  const items: MenuAction[] = [
+    ...(onRename ? [{ label: "Rename", icon: "edit", onClick: () => setEditing(true) }] : []),
+    ...(more || []),
+  ];
   return (
     <header className="flow-detail-heading">
       <div className="flow-stack">
@@ -46,16 +134,12 @@ export function ProjectHeader({
           </ol>
         </nav>
         <div className="flow-title-row">
-          <h1>{projectTitle(project)}</h1>
+          <EditableTitle project={project} onRename={onRename} editing={editing} setEditing={setEditing} />
           <StatusBadge project={project} />
         </div>
         <p className="flow-caption flow-muted edge">
-          {project.type === "brief" ? "Visual brief" : "Walkthrough"} ·{" "}
-          {project.source === "web"
-            ? project.sourceLabel || project.url || "Website"
-            : project.source === "screen"
-              ? "Screen recording"
-              : "Uploaded recording"}
+          {typeText(project)}
+          {project.source === "web" ? ` · ${project.sourceLabel || project.url || ""}` : ""}
           {project.duration ? ` · ${formatDuration(project.duration)}` : ""}
           {voiceText ? ` · ${voiceText}` : ""}
         </p>
@@ -67,6 +151,11 @@ export function ProjectHeader({
             Share
           </Button>
         )}
+        {canAi && onAddAi && (
+          <Button icon="sparkle" disabled={active} onClick={onAddAi}>
+            {project.data.narratedVideo ? "Redo AI walkthrough" : "Add AI walkthrough"}
+          </Button>
+        )}
         {canDownload && (
           <button
             type="button"
@@ -76,26 +165,39 @@ export function ProjectHeader({
             title="One ZIP for a coding agent: a compact prompt, the narrated video, captions and a still of each section"
             onClick={() => void downloadKit()}
           >
-            {kitStage ? `${kitStage}…` : "Download files"}
+            <Icon name="download" />
+            {kitStage ? `${kitStage}…` : "Download"}
           </button>
+        )}
+        {items.length > 0 && (
+          <div className="menu-anchor">
+            <ToolButton
+              icon="more"
+              label="More actions"
+              aria-haspopup="menu"
+              aria-expanded={menu}
+              onClick={() => setMenu(!menu)}
+            />
+            {menu && <Menu items={items} onClose={() => setMenu(false)} />}
+          </div>
         )}
       </div>
     </header>
   );
 }
 
+/** A one-line strip with what the status means and what moves the project on. */
 export function NextStep({
   project,
-  adapter,
-  canVoiceover,
+  canAi,
   processing,
-  action,
+  onAddAi,
 }: {
   project: Project;
-  adapter: WorkspaceAdapter;
-  canVoiceover: boolean;
+  /** An AI walkthrough can be added to this project now. */
+  canAi: boolean;
   processing: boolean;
-  action: ProjectAction;
+  onAddAi: () => void;
 }) {
   return (
     <div className="flow-next" role="status">
@@ -104,23 +206,14 @@ export function NextStep({
         size={16}
       />
       <span>{statusHint(project)}</span>
-      {canVoiceover && (
+      {canAi && (
         <button
           className={`button ${project.data.narratedVideo ? "" : "button-primary"}`}
           disabled={processing}
-          onClick={() =>
-            void action(
-              "Adding voice-over",
-              () => adapter.rpc("voiceover", { id: project.id, review: reviewScriptPreferred() }),
-              reviewScriptPreferred()
-                ? "Vistralo is writing the narration. It stops for you to read it before the voice is added."
-                : "Voice-over started. Vistralo is writing the narration from the video.",
-            )
-          }
+          onClick={onAddAi}
         >
-          {project.data.narratedVideo
-            ? "Redo AI voice-over"
-            : "Add AI voice-over"}
+          <Icon name="sparkle" />
+          {project.data.narratedVideo ? "Redo AI walkthrough" : "Add AI walkthrough"}
         </button>
       )}
     </div>

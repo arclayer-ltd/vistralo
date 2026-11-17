@@ -1316,3 +1316,146 @@ main:has(> .project-detail) {
     justify-content: flex-start;
   }
 }
+
+/* Create flows: the steps along the top of the sheet. The current one is marked with the pencil. */
+.flow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.flow-steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-3);
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+}
+.flow-steps li + li::before {
+  content: "";
+  inline-size: var(--space-4);
+  border-block-start: var(--border-width) solid var(--control-border);
+}
+.flow-step-mark {
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--control-small);
+  block-size: var(--control-small);
+  border: var(--border-width) solid var(--control-border);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+}
+.flow-steps li.is-current {
+  color: var(--fg-1);
+  font-weight: var(--weight-semibold);
+}
+.flow-steps li.is-current .flow-step-mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--primary-fg);
+}
+.flow-steps li.is-done .flow-step-mark {
+  border-color: var(--accent-soft);
+  color: var(--accent-soft);
+}
+.field-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--success-fg);
+}
+.flow-summary {
+  display: grid;
+  margin: 0;
+  border: var(--border-width) solid var(--divider);
+  border-radius: var(--radius-card);
+  background: var(--sheet-group-bg);
+}
+.flow-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+.flow-summary > div + div {
+  border-block-start: var(--border-width) solid var(--divider);
+}
+.flow-summary dt {
+  color: var(--fg-2);
+}
+.flow-summary dd {
+  margin: 0;
+  color: var(--fg-1);
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+.flow-ai-later svg {
+  color: var(--accent-soft);
+}
+/* A Next button that is not ready yet is still focusable, so it can explain itself. */
+.button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* The AI walkthrough offer: what happens, what it costs, whose key pays. */
+.ai-steps {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ai-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.ai-steps li > svg {
+  flex: none;
+  color: var(--accent-soft);
+}
+.ai-steps span {
+  display: flex;
+  flex-direction: column;
+}
+.ai-steps strong {
+  color: var(--fg-1);
+  font-weight: var(--weight-semibold);
+}
+.ai-cost {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--divider);
+  border-radius: var(--radius-card);
+  background: var(--sheet-group-bg);
+}
+.ai-cost h3 {
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+  color: var(--fg-1);
+}
+.ai-cost strong {
+  color: var(--fg-1);
+}
+.ai-cost .edge {
+  font-size: var(--font-card);
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-soft);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+.link-button:hover {
+  color: var(--accent-hover);
+}

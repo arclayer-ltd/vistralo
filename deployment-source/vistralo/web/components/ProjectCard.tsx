@@ -11,6 +11,7 @@ import {
   projectTitle,
   sourceText,
   typeText,
+  kindIcon,
   statusText,
   statusIcon,
   statusHint,
@@ -82,16 +83,7 @@ function SourceIcon({ project, size = 16 }: { project: Project; size?: number })
       onError={() => setFailed(true)}
     />
   ) : (
-    <Icon
-      name={
-        project.source === "web"
-          ? "globe"
-          : project.source === "screen"
-            ? "video"
-            : "upload"
-      }
-      size={size}
-    />
+    <Icon name={kindIcon(project)} size={size} />
   );
 }
 
@@ -256,7 +248,7 @@ export function Thumbnail({ project: p, src }: { project: Project; src?: string 
       )}
       {working && !stall && (
         <progress
-          aria-label={`${p.status === "queued" ? "Queued" : p.type === "brief" ? "Analyzing site" : "Processing video"}: ${p.name}`}
+          aria-label={`${p.status === "queued" ? "Queued" : p.type === "brief" ? "Recording website" : "Processing video"}: ${p.name}`}
         />
       )}
     </div>
@@ -364,7 +356,9 @@ export function ProjectCard({
             <SourceIcon project={p} />
             {typeText(p)}
             <span className="tooltip" role="tooltip">
-              {typeText(p)} · {sourceText(p)}
+              {[typeText(p), sourceText(p) !== typeText(p) && sourceText(p), p.data?.narratedVideo && "AI walkthrough"]
+                .filter(Boolean)
+                .join(" · ")}
             </span>
           </span>
           {p.status !== "ready" && <StatusBadge project={p} />}

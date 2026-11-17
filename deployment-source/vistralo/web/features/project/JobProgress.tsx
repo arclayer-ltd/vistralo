@@ -5,40 +5,31 @@ import type {
   WorkspaceAdapter,
 } from "../../contracts";
 import type { ProjectAction } from "./useProjectDetail";
-import { reviewScriptPreferred } from "../flow-utils";
 
 export function JobFailure({
   project,
   adapter,
   info,
-  canVoiceover,
+  canAi,
   processing,
   action,
+  onAddAi,
 }: {
   project: Project;
   adapter: WorkspaceAdapter;
   info: ProjectInfo | null;
-  canVoiceover: boolean;
+  canAi: boolean;
   processing: boolean;
   action: ProjectAction;
+  onAddAi: () => void;
 }) {
   return (
     <div className="flow-error">
       <p>{project.error}</p>
       <div className="flow-actions">
-        {canVoiceover && info?.jobs?.[0]?.kind === "narrate" && (
-          <button
-            className="button"
-            disabled={processing}
-            onClick={() =>
-              void action(
-                "Adding voice-over",
-                () => adapter.rpc("voiceover", { id: project.id, review: reviewScriptPreferred() }),
-                "Voice-over restarted. The recording is preserved.",
-              )
-            }
-          >
-            Retry AI voice-over
+        {canAi && info?.jobs?.[0]?.kind === "narrate" && (
+          <button className="button" disabled={processing} onClick={onAddAi}>
+            Retry AI walkthrough
           </button>
         )}
         {project.source === "web" && project.url && (
@@ -102,7 +93,7 @@ export function JobProgress({
       <div>
         <strong>
           {info?.progress?.stage ||
-            (project.source === "web" ? "Analyzing site" : "Processing video")}
+            (project.source === "web" ? "Recording website" : "Processing video")}
         </strong>
         <p className="flow-caption flow-muted">
           {info?.progress?.detail ||

@@ -2,7 +2,8 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import { downloadAgentKit } from "../agent-kit";
 import type { AppMode, Project, WorkspaceAdapter } from "../contracts";
 import type { MenuAction } from "../components/Primitives";
-import { copyText } from "../utils";
+import { copyText, scriptAwaiting } from "../utils";
+import { canAddAiWalkthrough } from "../features/project/AiWalkthroughDialog";
 export type Run = (fn: () => Promise<any>, success?: string) => Promise<void>;
 export type ProjectEdit = { kind: string; projects: Project[] };
 /** What Undo would bring back, and the message that offered it. */
@@ -21,6 +22,7 @@ export function projectActions({
   setDeleting,
   setShare,
   setEdit,
+  addAi,
 }: {
   adapter: WorkspaceAdapter;
   mode: AppMode;
@@ -33,6 +35,8 @@ export function projectActions({
   setDeleting: Dispatch<SetStateAction<string[] | null>>;
   setShare: Dispatch<SetStateAction<Project[] | null>>;
   setEdit: Dispatch<SetStateAction<ProjectEdit | null>>;
+  /** Offers an AI walkthrough for a project, with its cost, before anything is queued. */
+  addAi?: (p: Project) => void;
 }) {
   function open(p: Project) {
     adapter
@@ -144,6 +148,20 @@ export function projectActions({
             "Project link copied. Studio sign-in is required.",
           ),
       },
+      // On any saved video: offered here as on the project page, and never started without asking.
+      ...(scriptAwaiting(p)
+        ? [{ label: "Review AI script", icon: "sparkle", onClick: () => open(p) }]
+        : addAi &&
+            canAddAiWalkthrough(p) &&
+            (mode === "demo" || adapter.capabilities.providers)
+          ? [
+              {
+                label: p.data?.narratedVideo ? "Redo AI walkthrough" : "Add AI walkthrough",
+                icon: "sparkle",
+                onClick: () => addAi(p),
+              },
+            ]
+          : []),
       {
         label: "Rename",
         icon: "edit",
@@ -212,7 +230,7 @@ export function projectActions({
             p.source === "web" && p.url
               ? run(
                   () => adapter.rpc("walkthrough", { id: p.id, url: p.url }),
-                  "Website analysis restarted",
+                  "Website recording restarted",
                 )
               : open(p),
         },

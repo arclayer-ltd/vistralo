@@ -43,7 +43,7 @@ export function RecoveryPrompt({
             ? `This is an unsaved recording from ${leftOver.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}. Save or download it, or discard it to record a new one. `
             : ""}
           {spoken
-            ? "Your voice is in this recording. Save it to keep that audio. AI narration will not run."
+            ? "Your voice is in this recording. Save it to keep that audio."
             : recoverySaved
               ? leftOver
                 ? "It is kept in this browser until you decide."

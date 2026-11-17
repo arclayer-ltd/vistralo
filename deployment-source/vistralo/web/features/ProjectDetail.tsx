@@ -12,6 +12,7 @@ import { ShareFirst } from "./project/ShareFirst";
 import { StalledNotice } from "./project/StalledNotice";
 import { DeletionNote } from "../components/DeletionNote";
 import { stalled } from "../utils";
+import { canAddAiWalkthrough } from "./project/AiWalkthroughDialog";
 import { useProjectDetail } from "./project/useProjectDetail";
 import "./features.css";
 
@@ -25,6 +26,8 @@ interface Props {
   fresh?: boolean;
   onShare?: () => void;
   onFreshDone?: () => void;
+  /** Opens the AI walkthrough offer, with its cost, for this project. */
+  onAddAi?: (project: Project) => void;
 }
 type Tab = "overview" | "editor" | "brief" | "files";
 
@@ -39,6 +42,7 @@ export function ProjectDetail({
   fresh,
   onShare,
   onFreshDone,
+  onAddAi,
 }: Props) {
   const {
     info,
@@ -95,20 +99,26 @@ export function ProjectDetail({
     project.data.walkthroughVideo ||
     project.data.video ||
     original) as string | undefined;
-  const canVoiceover =
-    adapter.mode === "cloud" &&
-    adapter.capabilities.providers &&
-    project.type === "walkthrough" &&
-    project.source !== "web" &&
-    !!sourceFile;
+  // Any saved video can get an AI walkthrough: a recording, an upload, images or a recorded website.
+  // The demo shows the offer too, and says there that it needs a cloud workspace.
+  const canAi =
+    !!onAddAi &&
+    (adapter.mode === "demo" || (adapter.mode === "cloud" && adapter.capabilities.providers)) &&
+    !!(sourceFile || project.video) &&
+    canAddAiWalkthrough(project) &&
+    !awaitingReview(project);
+  const addAi = () => onAddAi?.(project);
+  const hasVideo = !!previewFile;
+  const rename = async (name: string) =>
+    action("Renaming", () => adapter.update(project.id, { name }), "Project renamed");
   const voiceText =
-    project.type !== "walkthrough" || !original
+    !original
       ? ""
       : project.data.narratedVideo
-        ? "AI voice-over"
+        ? "AI walkthrough"
         : project.data.microphone
           ? "Your voice"
-          : "No voice-over";
+          : "No voice";
   const videoFiles = files.filter((file) => isVideo(file.file));
   const tabs: { id: Tab; name: string }[] = [
     { id: "overview", name: "Overview" },
@@ -156,6 +166,45 @@ export function ProjectDetail({
     project.data.buildBrief?.json ||
     (project.type === "brief" && brief.trim())
   );
+  // Secondary actions that are not buttons of their own: every one stays a click away.
+  const more = [
+    ...(tabs.some((item) => item.id === "editor")
+      ? [{ label: "Trim in the editor", icon: "edit", onClick: () => setTab("editor") }]
+      : []),
+    ...(original && !output && !active
+      ? [
+          {
+            label: "Create MP4 preview",
+            icon: "video",
+            onClick: () =>
+              void action(
+                "Creating MP4",
+                () => adapter.rpc("process", { id: project.id, action: "remux" }),
+                adapter.mode === "demo"
+                  ? "Demo processing simulated; no MP4 was produced."
+                  : "Creating an MP4 preview. The source file is preserved.",
+              ),
+          },
+        ]
+      : []),
+    { label: "Files", icon: "folder", onClick: () => setTab("files") },
+  ];
+  // The strip under the video: the share link first on a fresh save, otherwise what to do next,
+  // shown only when it says something the header's buttons do not.
+  const freshShare =
+    fresh && onShare && onFreshDone && !!project.video && !project.trashed ? (
+      <ShareFirst project={project} adapter={adapter} onMore={onShare} onDismiss={onFreshDone} />
+    ) : null;
+  const showNext =
+    !active &&
+    !project.error &&
+    (hasVideo
+      ? awaitingReview(project)
+      : project.type === "walkthrough" && project.status !== "ready");
+  const nextStep = showNext ? (
+    <NextStep project={project} canAi={!hasVideo && canAi} processing={processing} onAddAi={addAi} />
+  ) : null;
+  const strip = freshShare || nextStep;
 
   return (
     <div className="project-detail flow-stack">
@@ -175,29 +224,14 @@ export function ProjectDetail({
             ? onShare
             : undefined
         }
+        canAi={canAi && hasVideo}
+        onAddAi={addAi}
+        onRename={project.trashed ? undefined : rename}
+        more={more}
       />
       <DeletionNote project={project} variant="notice" />
-      {fresh && onShare && onFreshDone && !!project.video && !project.trashed && (
-        <ShareFirst
-          project={project}
-          adapter={adapter}
-          onMore={onShare}
-          onDismiss={onFreshDone}
-        />
-      )}
-      {/* A finished walkthrough with nothing left to do needs no notice above its player. */}
-      {!active &&
-        !project.error &&
-        project.type === "walkthrough" &&
-        (project.status !== "ready" || canVoiceover) && (
-        <NextStep
-          project={project}
-          adapter={adapter}
-          canVoiceover={canVoiceover}
-          processing={processing}
-          action={action}
-        />
-      )}
+      {/* With a video, the strip sits under it in Overview; without one it leads the page. */}
+      {(!hasVideo || tab !== "overview") && strip}
       {error && (
         <p className="flow-error" role="alert">
           {error}
@@ -215,9 +249,10 @@ export function ProjectDetail({
           project={project}
           adapter={adapter}
           info={info}
-          canVoiceover={canVoiceover}
+          canAi={canAi}
           processing={processing}
           action={action}
+          onAddAi={addAi}
         />
       )}
       {stall && (
@@ -284,15 +319,6 @@ export function ProjectDetail({
           aria-labelledby={`project-tab-${tab}`}
           tabIndex={0}
         >
-          {tab === "overview" && awaitingReview(project) && (
-            <WalkthroughScript
-              adapter={adapter}
-              project={project}
-              processing={processing}
-              action={action}
-              onDirty={setDraftDirty}
-            />
-          )}
           {tab === "overview" && (
             <OverviewTab
               project={project}
@@ -313,6 +339,17 @@ export function ProjectDetail({
               frames={frames}
               action={action}
               uploadVideo={uploadVideo}
+              strip={hasVideo ? strip : null}
+            />
+          )}
+          {/* The drafted AI script, read under the video it narrates. */}
+          {tab === "overview" && awaitingReview(project) && (
+            <WalkthroughScript
+              adapter={adapter}
+              project={project}
+              processing={processing}
+              action={action}
+              onDirty={setDraftDirty}
             />
           )}
           {tab === "editor" && (

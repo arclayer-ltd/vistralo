@@ -16,10 +16,9 @@ type Draft = { stops: WalkthroughStop[]; closing?: string; draftedAt?: string };
 const spokenSeconds = (texts: string[]) =>
   texts.join(" ").split(/\s+/).filter(Boolean).length / 2.4;
 
-/** A recorded walkthrough whose script was written for review and is not voiced yet. */
+/** A video (recorded, uploaded or a website's) whose AI script was drafted for review and is not voiced yet. */
 export const awaitingReview = (project: Project) =>
-  project.type === "walkthrough" &&
-  !!project.data.walkthroughDraft &&
+  Array.isArray(project.data.walkthroughDraft?.stops) &&
   project.data.scriptApproved !== true;
 
 /**

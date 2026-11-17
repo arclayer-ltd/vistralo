@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Project, WorkspaceAdapter } from "../../contracts";
-import { isTyping, sourceText, stalled } from "../../utils";
+import { isTyping, sourceText, stalled, typeText } from "../../utils";
+import { projectKind } from "../flow-utils";
 
 /** One page of the library. Divides evenly into two, three and four columns. */
 export const PAGE_SIZE = 48;
@@ -86,10 +87,11 @@ export function useLibrary({
     const needle = query.toLowerCase();
     return scope.filter(
       (p) =>
-        (type === "all" || p.type === type) &&
+        // `type` is what the project was made from: screen, website, video or images.
+        (type === "all" || projectKind(p) === type) &&
         (source === "all" || p.source === source) &&
         (!needle ||
-          `${p.name} ${sourceText(p)} ${p.folder || ""}`
+          `${p.name} ${sourceText(p)} ${typeText(p)} ${p.folder || ""}`
             .toLowerCase()
             .includes(needle)),
     );

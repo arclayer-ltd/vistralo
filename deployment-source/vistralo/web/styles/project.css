@@ -64,7 +64,8 @@ main:has(> .project-detail) {
   /* As tall as its own picture, so the frame hugs it; capped so the transport stays in view. */
   block-size: auto;
   aspect-ratio: auto 16 / 9;
-  max-block-size: calc(100dvh - var(--detail-chrome-height) + var(--space-16) * 2);
+  /* Tall enough to lead the page, short enough that its controls stay above the fold. */
+  max-block-size: calc(100dvh - var(--detail-chrome-height) + var(--space-16));
   min-block-size: 0;
   padding: var(--frame-edge);
   border: 0;
@@ -299,7 +300,8 @@ main:has(> .project-detail) {
 .trim .flow-stage video {
   block-size: auto;
   aspect-ratio: auto 16 / 9;
-  max-block-size: calc(100dvh - var(--detail-chrome-height) + var(--space-16) * 2);
+  /* Tall enough to lead the page, short enough that its controls stay above the fold. */
+  max-block-size: calc(100dvh - var(--detail-chrome-height) + var(--space-16));
   min-block-size: 0;
   padding: var(--frame-edge);
   border: 0;
@@ -739,5 +741,98 @@ main:has(> .project-detail) {
 @media (max-width: 767px) {
   .walkthrough-stops li {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The video is the page's hero: a short header (name renamed in place, what it is, its actions),
+   the section pills, then the film. Banners that used to stand above it are one strip beneath it. */
+.project-detail {
+  gap: var(--space-4);
+}
+.flow-detail-heading .flow-actions {
+  justify-content: flex-end;
+}
+.editable-title {
+  min-inline-size: 0;
+}
+.title-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-inline-size: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.title-button svg {
+  flex: none;
+  color: var(--fg-3);
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+}
+.title-button:hover svg,
+.title-button:focus-visible svg {
+  opacity: 1;
+}
+.title-button:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+.title-field {
+  inline-size: min(100%, 40ch);
+  min-block-size: var(--control-primary);
+  padding-inline: var(--space-2);
+  border: var(--border-width) solid var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--bg-elevated);
+  color: var(--fg-1);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-display);
+  font-size: var(--font-title);
+  line-height: var(--line-title);
+  font-weight: var(--weight-display);
+}
+/* The strip under the video: one line, quiet, dismissible. */
+.flow-overview .share-first {
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+}
+.flow-overview .share-first-copy {
+  gap: 0;
+}
+.flow-overview .share-first-copy h2 {
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+}
+.flow-overview .share-first-copy p {
+  font-size: var(--font-caption);
+  line-height: var(--line-caption);
+}
+/* The hero hugs its own picture at every width, with no letterbox above or below it. */
+.flow-video .flow-stage video {
+  block-size: auto;
+  min-block-size: 0;
+}
+@media (max-width: 767px) {
+  .flow-detail-heading > .flow-actions {
+    flex-basis: 100%;
+    flex-shrink: 1;
+    min-inline-size: 0;
+    justify-content: flex-start;
+  }
+  .title-button svg {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .title-button svg {
+    opacity: 1;
   }
 }
