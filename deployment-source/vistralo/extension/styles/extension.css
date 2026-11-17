@@ -207,6 +207,69 @@ a {
 .row .button {
   flex: 1;
 }
+/* Waiting for Chrome's "Choose what to share" window */
+.choosing {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--accent-wash);
+  text-align: center;
+}
+.choosing h2 {
+  margin-top: var(--space-1);
+}
+.choosing .muted {
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+}
+.choosing-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--control-primary);
+  height: var(--control-primary);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  color: var(--accent);
+}
+.choosing-icon svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+.choosing-icon::after {
+  content: "";
+  position: absolute;
+  inset: var(--space-0);
+  border-radius: var(--radius-pill);
+  border: var(--border-width) solid var(--accent);
+  animation: choosing-pulse var(--motion-pulse) var(--motion-ease) infinite;
+}
+@keyframes choosing-pulse {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .choosing-icon::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+.choosing-tip {
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: var(--border-width) solid var(--divider);
+  color: var(--fg-2);
+  font-size: var(--font-caption);
+  line-height: var(--line-caption);
+}
 .session-clock {
   font-family: var(--font-mono);
   font-size: var(--font-title);

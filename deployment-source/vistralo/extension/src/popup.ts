@@ -102,12 +102,21 @@ function render() {
   if (s.phase === "recording") tick = window.setInterval(paint, 250);
   // Before the source is open (Chrome's chooser may still be waiting) only cancelling does anything.
   const choosing = s.phase === "requesting";
-  show("share-hint", choosing && s.mode === "screen");
+  // Chrome's chooser is open: say what to do there, and offer nothing but a way out.
+  const chooser = choosing && s.mode === "screen";
+  show("choosing", chooser);
+  show("choosing-audio", chooser && options.systemAudio);
+  show("session-status", !chooser);
+  show("session-clock", !choosing);
+  show("open-recorder", !choosing);
   show("run-row", !choosing);
   show("restart", !choosing);
-  $("cancel", HTMLButtonElement).textContent = choosing || s.phase === "countdown" ? "Cancel" : "Discard";
+  const cancel = $("cancel", HTMLButtonElement);
+  const before = choosing || s.phase === "countdown";
+  cancel.textContent = before ? "Cancel" : "Discard";
+  cancel.classList.toggle("button-danger", !before);
   $("session-status", HTMLElement).textContent =
-    s.phase === "requesting" ? (s.mode === "screen" ? "Waiting for you to choose what to share" : "Starting…") : s.phase === "countdown" ? "Counting in…" : s.phase === "paused" ? "Paused" : s.phase === "recording" ? "Recording" : "Finishing…";
+    s.phase === "requesting" ? "Starting…" : s.phase === "countdown" ? "Counting in…" : s.phase === "paused" ? "Paused" : s.phase === "recording" ? "Recording" : "Finishing…";
   const running = s.phase === "recording" || s.phase === "paused";
   $("pause", HTMLButtonElement).textContent = s.phase === "paused" ? "Resume" : "Pause";
   for (const id of ["pause", "stop", "restart"]) $(id, HTMLButtonElement).disabled = !running;

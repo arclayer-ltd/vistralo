@@ -42,8 +42,13 @@
   </form>
 
   <section id="session" class="session" aria-live="polite" hidden>
+    <div id="choosing" class="choosing" hidden>
+      <span class="choosing-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+      <h2>Choose what to share</h2>
+      <p class="muted">In Chrome's window, pick a tab, a window or your entire screen, then press Share.</p>
+      <p id="choosing-audio" class="choosing-tip" hidden>For your computer's sound, choose Entire Screen and switch on "Share system audio".</p>
+    </div>
     <p id="session-status">Recording</p>
-    <p id="share-hint" class="muted" hidden>Chrome's "Choose what to share" window is open. Pick a window or screen there and press Share, or cancel here.</p>
     <time id="session-clock" class="session-clock">0:00</time>
     <div id="mic-row" class="row" hidden>
       <div class="meter" role="img" aria-label="Microphone level"><span></span><span></span><span></span><span></span><span></span></div>
