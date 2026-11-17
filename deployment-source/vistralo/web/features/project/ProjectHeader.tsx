@@ -4,6 +4,7 @@ import React from "react";
 import type { Project, WorkspaceAdapter } from "../../contracts";
 import { Icon } from "../../components/Icon";
 import { Button } from "../../components/Controls";
+import { DeletionNote } from "../../components/DeletionNote";
 import { formatDuration } from "../flow-utils";
 import type { ProjectAction } from "./useProjectDetail";
 import { reviewScriptPreferred } from "../flow-utils";
@@ -58,6 +59,7 @@ export function ProjectHeader({
           {project.duration ? ` · ${formatDuration(project.duration)}` : ""}
           {voiceText ? ` · ${voiceText}` : ""}
         </p>
+        <DeletionNote project={project} variant="caption" />
       </div>
       <div className="flow-actions">
         {onShare && (

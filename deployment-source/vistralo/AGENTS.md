@@ -8,5 +8,6 @@
 - Worker claims about a site (libraries, fonts, effects) must come from the build read's evidence; say "likely" when only the video frames suggest it.
 - The paid provider (OpenAI, for the script and the voice) is only called for real user jobs. Do not queue a paid job to test without the owner's yes.
 - Keep credentials out of projects, logs, prompts and Git.
+- Projects are deleted 3 months after they are made, behind `vistralo_retention.enabled` (off by default); the worker sweeps hourly. Read `docs/RETENTION.md` before changing project dates, duplicates or deletion.
 - Plans and Paddle are behind `VISTRALO_BILLING` (off by default) and sandbox only; read `docs/BILLING.md` before touching them. The Paddle API key and webhook secret are Supabase function secrets, never build variables.
 - Before committing, run `npm run build:server`, `npm test`, `npm run typecheck:web` and `npm run lint:design`.

@@ -66,6 +66,8 @@ function mockSupabase(host, world) {
       return route.fulfill({status:204, headers:cors});
     }
     if (name === 'POST /rest/v1/rpc/vistralo_billing_state') return json(route, 200, freePlan);
+    // The deletion switch (off), as production has it until the owner turns it on.
+    if (name === 'GET /rest/v1/vistralo_retention') return json(route, 200, {enabled:false, grace_start:null});
     // An empty workspace. The library asks for a count with each read, which PostgREST answers in Content-Range.
     if (name === 'GET /rest/v1/vistralo_projects' || name === 'GET /rest/v1/vistralo_jobs') return route.fulfill({status:200, headers:{...cors, 'content-type':'application/json', 'content-range':'*/0'}, body:'[]'});
     if (name === 'HEAD /rest/v1/vistralo_projects') return route.fulfill({status:200, headers:{...cors, 'content-range':'*/0'}});

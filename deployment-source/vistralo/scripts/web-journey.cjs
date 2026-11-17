@@ -449,6 +449,33 @@ async function main() {
     await studio.close();
     checks.push('discarding a take saves nothing, and Escape during the count-in stops before recording starts');
 
+    // Each project says when it is deleted, 3 months after it was made. In its last week the card warns, and the
+    // project page says so in a box under its title.
+    await page.goto(app.origin + '/#demo/projects');
+    await page.locator('.project-card').first().waitFor();
+    const dated = await page.locator('.project-card .card-deletion time').allInnerTexts();
+    assert.ok(dated.length > 0 && dated.length === await page.locator('.project-card').count(), 'Every card shows its deletion date');
+    assert.ok(dated.every(text => /^Deleted on \S/.test(text)), `Cards say "Deleted on" a date: ${dated.slice(0, 3).join(' | ')}`);
+    const soon = await page.evaluate(() => {
+      const key = 'vistralo-demo-workspace:v1', store = JSON.parse(localStorage.getItem(key));
+      const target = store.projects.find(project => project.status === 'ready' && !project.trashed);
+      const made = new Date(); made.setUTCMonth(made.getUTCMonth() - 3); made.setUTCDate(made.getUTCDate() + 4);
+      target.created = made.toISOString();
+      localStorage.setItem(key, JSON.stringify(store));
+      return {id:target.id, name:target.name};
+    });
+    await page.reload();
+    const soonCard = page.locator('.project-card').filter({has:page.getByRole('link', {name:soon.name, exact:true})}).first();
+    const soonText = await soonCard.locator('.card-deletion.is-soon time').innerText();
+    assert.match(soonText, /^Deleted (in [3-5] days|tomorrow)$/, 'A card in its last week counts the days');
+    assert.match(await soonCard.locator('.card-deletion').getAttribute('title'), /Download anything you want to keep now/);
+    await page.goto(app.origin + '/#demo/project/' + soon.id);
+    const deletionNotice = page.locator('.deletion-notice[role="status"]');
+    await deletionNotice.waitFor();
+    assert.match(await deletionNotice.innerText(), /^Deleted (in [3-5] days|tomorrow) Deleted on .+\. Projects are deleted 3 months after they are made\. Download anything you want to keep now\.$/);
+    assert.equal(await page.locator('.deletion-caption').count(), 0, 'The box says it once; the caption does not repeat it');
+    checks.push(`every card shows its deletion date, and in its last week the card and the project page warn (${soonText})`);
+
     assert.deepEqual(errors, [], 'No uncaught exceptions or CSP violations');
     checks.push('no uncaught exceptions or CSP violations');
     fs.writeFileSync(path.join(evidence, 'result.json'), JSON.stringify({passed:true, at:new Date().toISOString(), checks}, null, 2));

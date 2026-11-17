@@ -10,6 +10,7 @@ import { WalkthroughScript, awaitingReview } from "./project/WalkthroughScript";
 import { NextStep, ProjectHeader } from "./project/ProjectHeader";
 import { ShareFirst } from "./project/ShareFirst";
 import { StalledNotice } from "./project/StalledNotice";
+import { DeletionNote } from "../components/DeletionNote";
 import { stalled } from "../utils";
 import { useProjectDetail } from "./project/useProjectDetail";
 import "./features.css";
@@ -175,6 +176,7 @@ export function ProjectDetail({
             : undefined
         }
       />
+      <DeletionNote project={project} variant="notice" />
       {fresh && onShare && onFreshDone && !!project.video && !project.trashed && (
         <ShareFirst
           project={project}

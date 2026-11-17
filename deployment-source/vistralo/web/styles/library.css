@@ -580,6 +580,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* When the project is deleted (3 months after it was made); amber with a warning sign in its last week. */
+.card-deletion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--font-caption);
+  line-height: var(--line-caption);
+  color: var(--fg-3);
+}
+.card-deletion.is-soon {
+  color: var(--warning-fg);
+  font-weight: var(--weight-semibold);
+}
+.card-deletion svg {
+  flex: none;
+}
 .card-detail,
 .error-reason {
   display: -webkit-box;
