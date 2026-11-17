@@ -1,4 +1,5 @@
--- Projects are deleted 3 months after they are made, with every file they stored. NOT YET APPLIED to production.
+-- Projects are deleted 3 months after they are made, with every file they stored.
+-- Applied to production on 17 November 2026 (version 20261117121611) with the switch off.
 --
 -- Applying this migration deletes nothing: the switch (vistralo_retention.enabled) starts false, and while it is
 -- false no function here returns a project and no policy here allows a delete. See docs/RETENTION.md for how to

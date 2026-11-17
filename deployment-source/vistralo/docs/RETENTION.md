@@ -34,7 +34,7 @@ When the switch is on, each card and the project page say **"Deleted on 17 Feb 2
 
 ## Turning it on (owner)
 
-1. **Apply the migration** `20261117120000_vistralo_project_retention.sql` to project `yyiikuzhgxdgrthntzyr`. On its own this changes nothing: the switch is off.
+1. **Apply the migration** `20261117120000_vistralo_project_retention.sql` to project `yyiikuzhgxdgrthntzyr`. On its own this changes nothing: the switch is off. (Done 17 November 2026, version 20261117121611.)
 2. **Deploy the web app** by merging the PR. It works before or after the migration: without the table, it shows no dates.
 3. **Deploy the worker** by copying `scripts/local-admin-worker.cjs`, `src/retention.cjs` and `src/retention-sweep.cjs` to `/opt/vistralo-worker` and running `systemctl restart vistralo-worker`. With the switch off, each sweep finds nothing.
 4. **Run the dry run again** on the worker host, and check the numbers:
