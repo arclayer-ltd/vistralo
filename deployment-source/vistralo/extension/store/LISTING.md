@@ -41,8 +41,8 @@ You need a Vistralo account to turn a recording into a walkthrough. Recording, r
 Permissions
 Vistralo only records after you click it in the toolbar and press Start. It asks to draw its controls on every site only if you tick that option; otherwise they stay on the page you started on.
 
-Privacy policy: https://app.vistralo.com/privacy
-Help: hello@arclayer.co
+Privacy policy: https://vistralo.com/privacy
+Help: contact@vistralo.com
 ```
 
 **Category:** Productivity → Tools. (Workflow & Planning is the other reasonable choice; Tools is where screen recorders are listed.)
@@ -65,7 +65,7 @@ Help: hello@arclayer.co
 | --- | --- |
 | Official URL | https://vistralo.com (only selectable after the owner verifies the domain in Google Search Console) |
 | Homepage URL | https://vistralo.com |
-| Support URL | `mailto:hello@arclayer.co`. If the dashboard refuses a mailto link, leave it blank; the email is in the description. |
+| Support URL | `mailto:contact@vistralo.com`. If the dashboard refuses a mailto link, leave it blank; the email is in the description. |
 | Mature content | No |
 
 ## Privacy practices tab
@@ -114,7 +114,7 @@ A screen recording can show anything the user puts on screen. The extension does
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
-**Privacy policy URL:** `https://app.vistralo.com/privacy`. It is built from `docs/legal/PRIVACY.md` and includes the extension section and the Limited Use statement. Open it in a private window before submitting to check it loads without signing in.
+**Privacy policy URL:** `https://vistralo.com/privacy`. It is built from `docs/legal/PRIVACY.md` and includes the extension section and the Limited Use statement. Open it in a private window before submitting to check it loads without signing in.
 
 ## Distribution tab
 

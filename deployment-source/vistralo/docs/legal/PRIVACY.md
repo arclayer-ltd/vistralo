@@ -1,7 +1,7 @@
 <!--
-This file is the published privacy policy. `scripts/build-web.cjs` turns it into the page at
-https://app.vistralo.com/privacy (see `scripts/legal-page.cjs` for the few kinds of formatting it
-understands: headings, paragraphs, lists, bold and links). Comments like this one are left out of
+This file is the published privacy policy. The vistralo-home repository builds it into the page at
+https://vistralo.com/privacy, and app.vistralo.com/privacy redirects there. Both builders understand only headings,
+paragraphs, lists, bold and links (see `scripts/legal-page.cjs`). Comments like this one are left out of
 the page.
 
 When you change it: change "Last updated", keep the previous version in Git, and tell account
@@ -18,7 +18,7 @@ This policy explains what information Vistralo collects, why, who else handles i
 
 Vistralo is run by Rezan Ferdous, an individual, in Enayetpur, Sirajganj, Bangladesh. In this policy "Vistralo", "we" and "us" mean Rezan Ferdous.
 
-Email: [hello@arclayer.co](mailto:hello@arclayer.co). Write to this address for anything about your privacy or your account.
+Email: [contact@vistralo.com](mailto:contact@vistralo.com). Write to this address for anything about your privacy or your account.
 
 We are responsible for your account information and for the records we keep to run the service. For the recordings and files you put into Vistralo, you decide what to record and upload, and we handle them only to provide the service to you.
 
@@ -101,7 +101,7 @@ We use these providers to run Vistralo. They handle your information only to pro
 - **Vercel** (Vercel Inc., USA): hosts the web app and the website, and delivers them from servers around the world, close to wherever you are.
 - **BrainStorm Network** (Los Angeles, USA): hosts our processing server, which makes your films and reads websites for website projects. It keeps a working copy of a project's files only while a job is running and deletes it when the job ends (or within a day, if the job was cut off).
 - **OpenAI** (OpenAI, L.L.C., USA): writes and speaks the narration, only when you ask for AI narration.
-- **Hostinger**: hosts the hello@arclayer.co mailbox, so it handles the emails you send us.
+- **Hostinger**: hosts the contact@vistralo.com mailbox, so it handles the emails you send us.
 
 We may also share information if the law requires it, or to protect people or the service from fraud or abuse. If Vistralo is ever sold or passed to someone else, your information would go to the new owner under this policy, and we would tell you first.
 
@@ -135,7 +135,7 @@ Depending on where you live, you may have the right to:
 - object to, or ask us to limit, how we use it;
 - withdraw consent where we rely on it.
 
-To use any of these, email [hello@arclayer.co](mailto:hello@arclayer.co) from the address on your account. We may ask you to confirm it is you. We will reply within 30 days. There is no button to close your account yet, so please email us.
+To use any of these, email [contact@vistralo.com](mailto:contact@vistralo.com) from the address on your account. We may ask you to confirm it is you. We will reply within 30 days. There is no button to close your account yet, so please email us.
 
 If you are unhappy with how we handled your information, please tell us first. You can also complain to the data protection authority where you live (in the United Kingdom, the Information Commissioner's Office).
 
@@ -149,4 +149,4 @@ When we change this policy, we will post the new version on this page and change
 
 ## Contact
 
-Rezan Ferdous (Vistralo), Enayetpur, Sirajganj, Bangladesh. Email [hello@arclayer.co](mailto:hello@arclayer.co).
+Rezan Ferdous (Vistralo), Enayetpur, Sirajganj, Bangladesh. Email [contact@vistralo.com](mailto:contact@vistralo.com).

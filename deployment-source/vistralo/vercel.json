@@ -15,5 +15,6 @@
     {"key":"Referrer-Policy","value":"no-referrer"},
     {"key":"X-Robots-Tag","value":"noindex, nofollow"}
   ]}],
-  "rewrites":[{"source":"/auth/callback","destination":"/index.html"},{"source":"/watch","destination":"/watch.html"},{"source":"/privacy","destination":"/privacy.html"}]
+  "redirects":[{"source":"/privacy","destination":"https://vistralo.com/privacy","permanent":true}],
+  "rewrites":[{"source":"/auth/callback","destination":"/index.html"},{"source":"/watch","destination":"/watch.html"}]
 }

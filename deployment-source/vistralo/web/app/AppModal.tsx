@@ -49,12 +49,12 @@ export function AppModal({
         onClose={close}
         footer={
           <a
-            href="mailto:hello@arclayer.co"
+            href="mailto:contact@vistralo.com"
             className="button button-primary"
             data-autofocus
           >
             <Icon name="mail" />
-            hello@arclayer.co
+            contact@vistralo.com
           </a>
         }
       >

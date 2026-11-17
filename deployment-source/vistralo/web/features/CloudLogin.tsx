@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { privacyUrl } from "../app/routing";
 import { cloud } from "../cloud";
 import { billingConfig } from "../billing/config";
 import { Button, Field } from "../components/Controls";
@@ -238,7 +239,7 @@ export function CloudLogin({
           </p>
         ) : (
           <p className="caption">
-            Need access? Contact <a href="mailto:hello@arclayer.co">hello@arclayer.co</a>.
+            Need access? Contact <a href="mailto:contact@vistralo.com">contact@vistralo.com</a>.
           </p>
         )}
         {onPlans && !recovering && (
@@ -247,7 +248,7 @@ export function CloudLogin({
           </button>
         )}
         <p className="caption">
-          <a href="/privacy">Privacy policy</a>
+          <a href={privacyUrl}>Privacy policy</a>
         </p>
       </div>
     </main>

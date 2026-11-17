@@ -1,6 +1,6 @@
 # Vistralo copyright and takedown policy — DRAFT, NOT PUBLISHED
 
-Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Effective `{{EFFECTIVE_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`
 
 **Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft and is not legal advice. Whether Vistralo can rely on any statutory protection for hosts (for example under the US Digital Millennium Copyright Act or the EU Digital Services Act) depends on steps this draft does not take, such as registering an agent. `{{COUNSEL: WHICH REGIMES APPLY AND WHAT EACH REQUIRES}}`
 
@@ -18,7 +18,7 @@ A project is private to the account that made it. The only public surface is a s
 
 ## How to send a complaint
 
-Email hello@arclayer.co with the subject "Copyright complaint" and include: `{{DESIGNATED_AGENT_NAME_AND_ADDRESS_IF_REGISTERED}}`
+Email contact@vistralo.com with the subject "Copyright complaint" and include: `{{DESIGNATED_AGENT_NAME_AND_ADDRESS_IF_REGISTERED}}`
 
 1. Your name, and the rights holder's name if you are acting for someone.
 2. A way to reach you: an email address, and a postal address or phone number.
@@ -39,7 +39,7 @@ Without the share link we usually cannot find the content, because projects are 
 
 ## If your content was removed and you disagree
 
-Reply to the notice we sent you, or email hello@arclayer.co, and include: which content was removed, why you believe the removal was a mistake or that you have the right to use the work, your name and contact details, and a statement that what you say is accurate. `{{COUNTER_NOTICE_REQUIREMENTS_AND_JURISDICTION_STATEMENT}}`
+Reply to the notice we sent you, or email contact@vistralo.com, and include: which content was removed, why you believe the removal was a mistake or that you have the right to use the work, your name and contact details, and a statement that what you say is accurate. `{{COUNTER_NOTICE_REQUIREMENTS_AND_JURISDICTION_STATEMENT}}`
 
 We pass a complete reply to the person who complained. `{{RESTORATION_RULE_AND_WAITING_PERIOD}}`
 

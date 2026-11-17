@@ -1,6 +1,6 @@
 # How Vistralo uses AI and voices — DRAFT, NOT PUBLISHED
 
-Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Effective `{{EFFECTIVE_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`
 
 **Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft describing what the code does on 13 October 2026. It is not legal advice. Every statement about what OpenAI does with data must be checked against their current terms before publication; this draft makes none.
 

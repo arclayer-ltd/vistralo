@@ -1,6 +1,6 @@
 # Vistralo subprocessors and other recipients — DRAFT, NOT PUBLISHED
 
-Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Last updated `{{DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Last updated `{{DATE}}`
 
 **Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft and is not legal advice. The list was taken from the code on 13 October 2026: every company below is one the app, the worker or the build is written to send data to. Legal entity names, locations and transfer safeguards are not in the code and are left as fields. Whether each company is a subprocessor, a separate controller or the customer's own processor is a legal classification for counsel to confirm.
 

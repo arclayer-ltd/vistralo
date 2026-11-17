@@ -16,7 +16,7 @@ Vistralo is run by Rezan Ferdous, an individual in Bangladesh, not by a company.
 
 ## How to reach us
 
-One address for everything, read by a person: **hello@arclayer.co**. Put the subject in the first words so it reaches the right person quickly.
+One address for everything, read by a person: **contact@vistralo.com**. Put the subject in the first words so it reaches the right person quickly.
 
 | For | Subject to use | What to include |
 | --- | --- | --- |
@@ -40,5 +40,5 @@ Paid plans are sold by Paddle.com as reseller and merchant of record. The name o
 ## Facts to check before publishing
 
 1. Whether a full postal address must be published where Vistralo is sold (some EU countries require one for a trader); the owner chose town-level for now.
-2. That hello@arclayer.co (hosted by Hostinger) is delivered to a mailbox someone reads, and who answers each subject.
+2. That contact@vistralo.com (hosted by Hostinger) is delivered to a mailbox someone reads, and who answers each subject.
 3. That the domain vistralo.com is held by Rezan Ferdous or on Rezan Ferdous's behalf.
