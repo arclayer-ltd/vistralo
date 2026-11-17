@@ -29,8 +29,9 @@ export function searchBand(geo: ScreenGeometry) {
 /**
  * Finds the bar in a strip of RGBA pixels covering `searchBand`. Chrome draws it at a fixed place:
  * its top edge about 58 points above the end of the work area and its bottom border 5 to 8 points
- * above it, centred and a few hundred points wide. Both edges must be there, each a line of one
- * colour unlike its neighbours, so a page's own toast or banner near the bottom is left alone.
+ * above it, centred and a few hundred points wide, with a blue Stop sharing button in its right
+ * half. All of that must be there, so a page's own toast, banner or video controls near the bottom
+ * are left alone. If Chrome's theme turns the button another colour, the bar is not found and stays.
  */
 export function findSharingBar(pixels: ArrayLike<number>, width: number, top: number, rows: number, geo: ScreenGeometry): BarRect | null {
   const lum = (x: number, y: number) => {
@@ -55,40 +56,82 @@ export function findSharingBar(pixels: ArrayLike<number>, width: number, top: nu
     }
     return false;
   };
+  // Chrome's blue Stop sharing button, in the bar's right half: blue well above red, in light and
+  // dark themes alike. A page's own dark band with a bright edge and a thin line under it (a full-screen
+  // video's controls) has everything else the bar has, but not this.
+  const hasButton = (y: number, right: number) => {
+    const from = Math.round(y + 8 * geo.scale);
+    const to = Math.min(top + rows - 1, Math.round(y + 44 * geo.scale));
+    let blue = 0;
+    let samples = 0;
+    for (let row = from; row <= to; row += 2) {
+      for (let x = centre; x <= right; x += 3) {
+        const i = ((row - top) * width + x) * 4;
+        samples++;
+        if (pixels[i + 2] - pixels[i] > 60 && pixels[i + 2] > 120) blue++;
+      }
+    }
+    return samples > 0 && blue / samples >= 0.1;
+  };
   const half = Math.round(150 * geo.scale);
   if (centre - half < 1 || centre + half >= width - 1) return null;
   const firstEdge = Math.max(top + 3, Math.round(geo.workBottom - 64 * geo.scale));
   const lastEdge = Math.min(top + rows, Math.round(geo.workBottom - 52 * geo.scale));
-  for (let y = firstEdge; y <= lastEdge; y++) {
-    let min = 255;
-    let max = 0;
+  // Rows just inside the bar, under its top border and above its text and button: one colour all
+  // the way across, light or dark with Chrome's theme. The border itself is a single point, which
+  // at fractional scales blends with whatever is above it, so the inside is what is looked for.
+  // Only about five points of it are clear before the Stop sharing button starts.
+  const insideFrom = Math.max(2, Math.round(2 * geo.scale));
+  const insideRows = 3;
+  const even = (y: number) => {
+    const values: number[] = [];
+    for (let x = centre - half; x <= centre + half; x += 2) values.push(lum(x, y));
+    values.sort((p, q) => p - q);
+    // The middle nine tenths: a few odd pixels (a thumbnail's edge bleeding in) do not count.
+    const low = values[Math.floor(values.length * 0.05)];
+    const high = values[Math.ceil(values.length * 0.95) - 1];
+    if (high - low > 20) return -1;
     let sum = 0;
-    let count = 0;
-    for (let x = centre - half; x <= centre + half; x += 2) {
-      const v = lum(x, y);
-      if (v < min) min = v;
-      if (v > max) max = v;
-      sum += v;
-      count++;
+    for (const v of values) sum += v;
+    return sum / values.length;
+  };
+  for (let y = firstEdge; y <= lastEdge; y++) {
+    let mean = -1;
+    let inside = true;
+    for (let r = y + insideFrom; r < y + insideFrom + insideRows && inside; r++) {
+      const m = even(r);
+      if (m < 0 || (mean >= 0 && Math.abs(m - mean) > 4)) inside = false;
+      else if (mean < 0) mean = m;
     }
-    if (max - min > 6) continue;
-    const mean = sum / count;
+    if (!inside) continue;
+    // The border row differs from the inside along the bar.
     let change = 0;
     let samples = 0;
     for (let x = centre - half; x <= centre + half; x += 8) {
-      change += Math.abs(lum(x, y - 3) - lum(x, y));
+      change += Math.abs(lum(x, y) - mean);
       samples++;
     }
     if (change / samples < 8) continue;
-    let left = centre - half;
-    while (left > 0 && Math.abs(lum(left - 1, y) - mean) <= 8) left--;
-    let right = centre + half;
-    while (right < width - 1 && Math.abs(lum(right + 1, y) - mean) <= 8) right++;
+    // The ends: walk out along each inside row until the bar's side borders. Chrome centres the bar,
+    // so the end that reaches further gives both (a window over one end, or compression bleeding a
+    // dark thumbnail into the bar, only shortens one side). The middle row's answer is kept, so one
+    // row where a border is too faint to stop the walk does not decide.
+    const reaches: number[] = [];
+    for (let r = y + insideFrom; r < y + insideFrom + insideRows; r++) {
+      let left = centre;
+      while (left > 0 && Math.abs(lum(left - 1, r) - mean) <= 10) left--;
+      let right = centre;
+      while (right < width - 1 && Math.abs(lum(right + 1, r) - mean) <= 10) right++;
+      reaches.push(Math.max(centre - left, right - centre));
+    }
+    reaches.sort((p, q) => p - q);
+    const reach = reaches[Math.floor(reaches.length / 2)];
+    const left = Math.max(0, centre - reach);
+    const right = Math.min(width - 1, centre + reach);
     const span = right - left + 1;
     if (span < 250 * geo.scale || span > 900 * geo.scale) continue;
-    // Centred, give or take a window that covers one end of it.
-    if (Math.abs((left + right) / 2 - centre) > 40 * geo.scale) continue;
     if (!bottomBorder(left, right)) continue;
+    if (!hasButton(y, right)) continue;
     // A little wider than the edge found: its shadow, or a sliver beside a window covering one end.
     const margin = Math.round(12 * geo.scale);
     const x = Math.max(0, left - margin);

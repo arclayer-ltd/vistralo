@@ -221,15 +221,31 @@ test("Chrome's floating sharing bar is found in a whole-screen frame, and nothin
   // 1010-1013 and the page showing between it and the taskbar; 550 pixels wide around the centre.
   const box = (set, x0, x1, y0, y1, bottom = true) => {
     for (let x = x0; x <= x1; x++) set(x, y0, 229);
-    for (let y = y0 + 1; y < y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 255);
+    for (let y = y0 + 1; y < y1; y++) for (let x = x0; x <= x1; x++) set(x, y, x === x0 || x === x1 ? 229 : 255);
     if (bottom) for (let y = y1; y < y1 + 4; y++) for (let x = x0; x <= x1; x++) set(x, y, 210);
   };
-  const withBar = frame((set) => box(set, 686, 1236, 948, 1010));
+  // Chrome's blue Stop sharing button, in the bar's right half.
+  const button = (px, x0, x1, y0, y1) => {
+    for (let y = y0; y < y1; y++) for (let x = x0; x <= x1; x++) px.set([11, 87, 208, 255], ((y - band.top) * W + x) * 4);
+    return px;
+  };
+  const withBar = button(frame((set) => box(set, 686, 1236, 948, 1010)), 1044, 1176, 960, 1000);
   const found = bar.findSharingBar(withBar, W, band.top, band.rows, geo);
   assert.ok(found, 'the bar is found');
   assert.ok(found.x <= 686 && found.x + found.width > 1236, 'it covers the bar from side to side');
   assert.ok(found.y < 948 && found.y + found.height >= 1020, 'and from its top edge to the taskbar');
   assert.ok(found.width < 700, 'but not the whole width of the screen');
+  // On a white page the bar's inside is the page's colour; its borders still give it away, and a
+  // thumbnail running into its top edge does not hide it.
+  const onWhite = (() => {
+    const px = frame((set) => {
+      for (let y = band.top; y < 1020; y++) for (let x = 0; x < W; x++) set(x, y, 255);
+      for (let y = band.top; y < 949; y++) for (let x = 400; x < 840; x++) set(x, y, 40);
+      box(set, 686, 1236, 948, 1010);
+    });
+    return bar.findSharingBar(button(px, 1044, 1176, 960, 1000), W, band.top, band.rows, geo);
+  })();
+  assert.ok(onWhite && onWhite.x <= 686 && onWhite.x + onWhite.width > 1236 && onWhite.width < 700, `found on a white page (${JSON.stringify(onWhite)})`);
 
   assert.equal(bar.findSharingBar(frame(() => {}), W, band.top, band.rows, geo), null, 'a plain page has no bar');
   const rule = frame((set) => {
@@ -244,6 +260,9 @@ test("Chrome's floating sharing bar is found in a whole-screen frame, and nothin
   const snackbar = frame((set) => box(set, 660, 1260, 930, 985));
   assert.equal(bar.findSharingBar(snackbar, W, band.top, band.rows, geo), null, 'a toast above the taskbar is not the bar');
   const banner = frame((set) => box(set, 686, 1236, 948, 1020, false));
+  // Everything the bar has but its button: a dark band under a bright edge with a line near the bottom.
+  const noButton = frame((set) => box(set, 686, 1236, 948, 1010));
+  assert.equal(bar.findSharingBar(noButton, W, band.top, band.rows, geo), null, 'without the blue button it is not the bar');
   assert.equal(bar.findSharingBar(banner, W, band.top, band.rows, geo), null, 'a banner running down to the taskbar is not the bar');
   // The patch is painted in the commonest colour just above it, not a stretched row of edges.
   const row = new Uint8ClampedArray(40 * 4).fill(250);
