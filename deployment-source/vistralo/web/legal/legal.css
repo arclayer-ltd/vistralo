@@ -1,0 +1,79 @@
+/* Public legal pages (/privacy), built from docs/legal/ by scripts/legal-page.cjs. No scripts;
+   every value comes from tokens.css. Text is kept to a readable line length, also on a phone. */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  color: var(--fg-1);
+  font-family: var(--font-family);
+  font-size: var(--font-card);
+  line-height: var(--line-card);
+}
+a { color: var(--accent-soft); overflow-wrap: anywhere; }
+a:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+.legal-bar, .legal-main, .legal-foot {
+  width: 100%;
+  max-width: 76ch;
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+.legal-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-4);
+}
+.legal-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-1);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-display);
+  font-weight: var(--weight-display);
+  font-size: var(--font-section);
+  line-height: var(--line-section);
+}
+.legal-brand svg { width: var(--icon-size); height: var(--icon-size); fill: currentColor; }
+.legal-app { font-size: var(--font-body); line-height: var(--line-body); }
+.legal-main { flex: 1; padding-block: var(--space-6) var(--space-16); }
+.legal-main h1 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-stretch: var(--stretch-display);
+  font-weight: var(--weight-display);
+  font-size: var(--font-title);
+  line-height: var(--line-title);
+  letter-spacing: var(--tracking-title);
+  text-wrap: balance;
+}
+.legal-main h2 {
+  margin: var(--space-10) 0 var(--space-3);
+  font-size: var(--font-section);
+  line-height: var(--line-section);
+  scroll-margin-top: var(--space-4);
+}
+.legal-main p, .legal-main ul { margin: 0 0 var(--space-4); color: var(--fg-2); }
+.legal-main ul { padding-left: var(--space-6); }
+.legal-main li { margin-bottom: var(--space-2); }
+.legal-main strong { color: var(--fg-1); }
+.legal-foot {
+  padding-block: var(--space-6);
+  border-top: var(--border-width) solid var(--divider);
+  color: var(--fg-3);
+  font-size: var(--font-body);
+  line-height: var(--line-body);
+}
+.legal-foot p { margin: 0; }
+@media (min-width: 640px) {
+  .legal-bar, .legal-main, .legal-foot { padding-inline: var(--space-6); }
+}

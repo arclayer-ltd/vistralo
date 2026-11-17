@@ -1,6 +1,6 @@
 # Vistralo refund policy — DRAFT, NOT PUBLISHED
 
-Operator Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Effective `{{EFFECTIVE_DATE}}`
 
 **Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** Paddle asks for a refund policy that customers can reach from the site's navigation before it approves a site for live payments, so this page gates going live. Check the wording against Paddle's current requirements and its Buyer Terms at the time of review; where this page and Paddle's terms differ, the customer will be shown both.
 
@@ -25,7 +25,7 @@ Consumers in the EU, the UK and some other places have a legal right to cancel a
 
 ## How to ask
 
-Email contact@vistralo.com from the address on the account, with the date of the payment. `{{RESPONSE_TIME}}`. Paddle's receipt also links to Paddle's own support, which can handle a refund request directly. Approved refunds are issued by Paddle; the time to reach the account depends on the card issuer or payment method. `{{TYPICAL_TIME_IF_PADDLE_STATES_ONE}}`
+Email hello@arclayer.co from the address on the account, with the date of the payment. `{{RESPONSE_TIME}}`. Paddle's receipt also links to Paddle's own support, which can handle a refund request directly. Approved refunds are issued by Paddle; the time to reach the account depends on the card issuer or payment method. `{{TYPICAL_TIME_IF_PADDLE_STATES_ONE}}`
 
 ## What happens to the account after a refund
 

@@ -9,7 +9,7 @@ import { Menu, ToolButton } from "../components/Primitives";
 import type { Billing } from "../billing/Billing";
 import { planLabel } from "../billing/plans";
 import type { Profile } from "./ProfileForm";
-import { docsUrl } from "./routing";
+import { docsUrl, privacyUrl } from "./routing";
 import { RecordControl } from "./RecordControl";
 import type { CreateFlow } from "../features/create-flows";
 import { projectTitle } from "../utils";
@@ -311,6 +311,12 @@ export function Rail({
                   label: "Contact support",
                   icon: "mail",
                   onClick: () => setModal("support"),
+                },
+                {
+                  label: "Privacy policy",
+                  icon: "external",
+                  onClick: () =>
+                    window.open(privacyUrl, "_blank", "noopener,noreferrer"),
                 },
               ]}
             />

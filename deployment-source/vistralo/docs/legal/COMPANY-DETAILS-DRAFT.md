@@ -1,24 +1,22 @@
 # Company details and contact — DRAFT, NOT PUBLISHED
 
-**Not approved. Do not publish or link this until the facts below are confirmed and every `{{FIELD}}` is filled.** The name, address and contact address are the ones supplied in this folder's README, which marks them as unconfirmed. Some countries require a provider of online services to publish specific details (often called an imprint or legal notice); which requirements apply depends on where Vistralo is offered. `{{COUNSEL}}`
+**Not approved. Do not publish or link this until the facts below are confirmed and every `{{FIELD}}` is filled.** The name, address and contact address were confirmed by the owner on 17 November 2026. Some countries require a provider of online services to publish specific details (often called an imprint or legal notice); which requirements apply depends on where Vistralo is offered. `{{COUNSEL}}`
 
 ## Who runs Vistralo
 
-Vistralo is a product of Dynamix LTD, a software company in Bangladesh.
+Vistralo is run by Rezan Ferdous, an individual in Bangladesh, not by a company.
 
 | | |
 | --- | --- |
-| Legal name | Dynamix LTD `{{CONFIRM_EXACT_REGISTERED_NAME}}` |
-| Registered address | Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh `{{CONFIRM}}` |
-| Company registration | `{{REGISTRATION_NUMBER_AND_REGISTER}}` |
+| Operator | Rezan Ferdous (an individual) |
+| Address | Enayetpur, Sirajganj, Bangladesh (town-level; the owner chose to publish this) |
 | Tax or VAT number | `{{IF_ANY}}` |
-| Represented by | `{{NAME_AND_ROLE}}` |
 | Website | https://vistralo.com |
 | App | https://app.vistralo.com |
 
 ## How to reach us
 
-One address for everything, read by a person: **contact@vistralo.com**. Put the subject in the first words so it reaches the right person quickly.
+One address for everything, read by a person: **hello@arclayer.co**. Put the subject in the first words so it reaches the right person quickly.
 
 | For | Subject to use | What to include |
 | --- | --- | --- |
@@ -41,6 +39,6 @@ Paid plans are sold by Paddle.com as reseller and merchant of record. The name o
 
 ## Facts to check before publishing
 
-1. The registered name and address against the company's registration documents.
-2. That contact@vistralo.com is delivered to a mailbox someone reads, and who answers each subject.
-3. That the domain vistralo.com is owned by the company named here.
+1. Whether a full postal address must be published where Vistralo is sold (some EU countries require one for a trader); the owner chose town-level for now.
+2. That hello@arclayer.co (hosted by Hostinger) is delivered to a mailbox someone reads, and who answers each subject.
+3. That the domain vistralo.com is held by Rezan Ferdous or on Rezan Ferdous's behalf.

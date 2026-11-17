@@ -65,7 +65,7 @@ Undecided, and not to be invented:
 
 - The name Vistralo and its emblem (`server-ui/assets/brand/emblem-light.svg`, `emblem-dark.svg`, `favicon.svg`) stay. (brief)
 - Vistralo keeps its own voice. It is modelled on Loom's structure and flows only; no other company's code, images, logo, wording, help text or legal text is used. (brief)
-- The operator named in the legal drafts is Dynamix LTD, Dhaka, Bangladesh; contact is contact@vistralo.com. (repo: `docs/legal/README.md`, itself marked unconfirmed)
+- Vistralo is run by Rezan Ferdous, an individual, in Enayetpur, Sirajganj, Bangladesh; contact is hello@arclayer.co. The privacy policy is published at https://app.vistralo.com/privacy. (confirmed by the owner, 17 November 2026; repo: `docs/legal/README.md`)
 - Voice, as the existing interface writes it: plain sentences, says what happened and what to do next, British-leaning spelling in docs ("analyse") and American in the interface ("Analyze a website"). (repo; the mixed spelling is an observation, not a decision)
 
 ## Evidence on Hand

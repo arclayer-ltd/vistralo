@@ -1,6 +1,6 @@
 # Vistralo security overview — DRAFT, NOT PUBLISHED
 
-Operator Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Last updated `{{DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Last updated `{{DATE}}`
 
 **Not approved. Do not publish or link this until it has been reviewed and every `{{FIELD}}` is filled.** It is an original draft. It describes only what the code shows on 13 October 2026, and it says where something is unknown. Vistralo holds no security certification and has had no independent audit or penetration test; this page must not suggest otherwise.
 
@@ -49,13 +49,13 @@ Stated plainly so nobody assumes otherwise:
 
 - No independent audit, penetration test or certification.
 - No multi-factor sign-in, single sign-on or team roles.
-- No self-service account deletion or export. Ask at contact@vistralo.com.
+- No self-service account deletion or export. Ask at hello@arclayer.co.
 - `{{BACKUP_AND_RESTORE: WHETHER BACKUPS EXIST, HOW LONG THEY ARE KEPT, AND WHEN A RESTORE WAS LAST TESTED}}`
 - `{{MONITORING_AND_INCIDENT_RESPONSE: WHO IS ALERTED, AND HOW QUICKLY CUSTOMERS ARE TOLD ABOUT A BREACH}}`
 
 ## Reporting a security problem
 
-Email contact@vistralo.com with "Security" in the subject. Say what you found and how to reproduce it, and please do not open other people's data or disrupt the service while testing. `{{RESPONSE_TIME}}` `{{SECURITY_MAILBOX_IF_SEPARATE, AND WHETHER A security.txt FILE IS PUBLISHED}}`
+Email hello@arclayer.co with "Security" in the subject. Say what you found and how to reproduce it, and please do not open other people's data or disrupt the service while testing. `{{RESPONSE_TIME}}` `{{SECURITY_MAILBOX_IF_SEPARATE, AND WHETHER A security.txt FILE IS PUBLISHED}}`
 
 ## Facts to check before publishing
 

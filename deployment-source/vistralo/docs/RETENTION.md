@@ -1,6 +1,6 @@
 # Project retention: deleted 3 months after they are made
 
-Every project, with every file it stored, is deleted automatically 3 months after the project was created, for every account. People can download what they want to keep before then. The privacy draft (`docs/legal/PRIVACY-DRAFT.md`) says the same.
+Every project, with every file it stored, is deleted automatically 3 months after the project was created, for every account. People can download what they want to keep before then. The privacy policy (`docs/legal/PRIVACY.md`, published at https://app.vistralo.com/privacy) says the same.
 
 The switch ships **off**. While it is off nothing is deleted and the app shows no dates.
 

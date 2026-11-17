@@ -238,7 +238,7 @@ export function CloudLogin({
           </p>
         ) : (
           <p className="caption">
-            Need access? Contact <a href="mailto:contact@vistralo.com">contact@vistralo.com</a>.
+            Need access? Contact <a href="mailto:hello@arclayer.co">hello@arclayer.co</a>.
           </p>
         )}
         {onPlans && !recovering && (
@@ -246,6 +246,9 @@ export function CloudLogin({
             See plans and prices
           </button>
         )}
+        <p className="caption">
+          <a href="/privacy">Privacy policy</a>
+        </p>
       </div>
     </main>
   );
