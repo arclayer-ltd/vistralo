@@ -57,6 +57,8 @@ function syncForm() {
   show("every-site-row", o.mode !== "camera");
   $("system-audio-label", HTMLElement).textContent = o.mode === "tab" ? "Record the tab's sound" : "Record system sound when offered";
   show("system-audio-row", o.mode !== "camera");
+  // Chrome's chooser starts with its system audio switch off, and a page cannot turn it on.
+  show("system-audio-hint", o.mode === "screen" && o.systemAudio);
   const noCamera = o.mode === "camera" && o.camera === null;
   show("camera-needed", noCamera);
   $("start", HTMLButtonElement).disabled = tabBlocked || noCamera;
@@ -98,13 +100,19 @@ function render() {
   };
   paint();
   if (s.phase === "recording") tick = window.setInterval(paint, 250);
+  // Before the source is open (Chrome's chooser may still be waiting) only cancelling does anything.
+  const choosing = s.phase === "requesting";
+  show("share-hint", choosing && s.mode === "screen");
+  show("run-row", !choosing);
+  show("restart", !choosing);
+  $("cancel", HTMLButtonElement).textContent = choosing || s.phase === "countdown" ? "Cancel" : "Discard";
   $("session-status", HTMLElement).textContent =
-    s.phase === "requesting" ? "Starting…" : s.phase === "countdown" ? "Counting in…" : s.phase === "paused" ? "Paused" : s.phase === "recording" ? "Recording" : "Finishing…";
+    s.phase === "requesting" ? (s.mode === "screen" ? "Waiting for you to choose what to share" : "Starting…") : s.phase === "countdown" ? "Counting in…" : s.phase === "paused" ? "Paused" : s.phase === "recording" ? "Recording" : "Finishing…";
   const running = s.phase === "recording" || s.phase === "paused";
   $("pause", HTMLButtonElement).textContent = s.phase === "paused" ? "Resume" : "Pause";
   for (const id of ["pause", "stop", "restart"]) $(id, HTMLButtonElement).disabled = !running;
   $("cancel", HTMLButtonElement).disabled = !(running || s.phase === "countdown" || s.phase === "requesting");
-  show("mic-row", s.microphone);
+  show("mic-row", s.microphone && !choosing);
   document.body.classList.toggle("is-muted", s.muted);
   $("mute", HTMLButtonElement).textContent = s.muted ? "Unmute" : "Mute";
 }
