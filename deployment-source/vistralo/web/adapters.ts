@@ -23,6 +23,8 @@ import {
 import { uuid } from "./id";
 import { abortIfNeeded } from "./checksum";
 import { billingConfig } from "./billing/config";
+import { setRetention } from "./retention";
+import { retainFromForCopy } from "../src/retention.cjs";
 import {
   grantsPlan,
   limitReached,
@@ -505,6 +507,8 @@ class DemoAdapter implements WorkspaceAdapter {
         trashedAt: undefined,
         lastOpened: undefined,
         created: now(),
+        // The copy keeps its original's deletion date.
+        retainFrom: retainFromForCopy(original),
         updated: now(),
         eventAt: now(),
         eventLabel: "Edited" as const,
@@ -943,8 +947,16 @@ class DemoAdapter implements WorkspaceAdapter {
 
 /** Mode is selected by the app boundary; authentication failures never switch to demo. */
 export function createAdapter(mode: AppMode): WorkspaceAdapter {
-  if (mode === "cloud") return new CloudAdapter();
-  if (mode === "demo") return new DemoAdapter();
+  // Cloud reads the deletion switch from the workspace; until then no dates show. The demo shows the rule as it
+  // works once the switch is on: 3 months from when each project was made.
+  if (mode === "cloud") {
+    setRetention(null);
+    return new CloudAdapter();
+  }
+  if (mode === "demo") {
+    setRetention({ enabled: true, graceStart: null });
+    return new DemoAdapter();
+  }
   throw new Error("Choose an explicit Vistralo workspace mode.");
 }
 

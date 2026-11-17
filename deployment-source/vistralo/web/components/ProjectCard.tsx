@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { Project } from "../contracts";
 import { Icon } from "./Icon";
 import { Menu, ToolButton, type MenuAction } from "./Primitives";
+import { DeletionNote } from "./DeletionNote";
 import {
   durationText,
   durationLabel,
@@ -478,6 +479,7 @@ export function ProjectCard({
           </div>
         </div>
         <p className="card-subtitle">{subtitle(p, locale)}</p>
+        <DeletionNote project={p} locale={locale} variant="card" />
         {p.error && (
           <p className="card-detail error-reason" title={p.error}>
             {p.error}

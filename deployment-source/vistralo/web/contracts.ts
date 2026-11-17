@@ -27,6 +27,8 @@ export interface Project {
   error?: string;
   created: string;
   updated: string;
+  /** A duplicate's original's start time: its 3 months count from here when earlier than created. */
+  retainFrom?: string;
   eventAt: string;
   eventLabel:
     | "Recorded"

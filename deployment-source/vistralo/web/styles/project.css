@@ -210,6 +210,30 @@ main:has(> .project-detail) {
   }
 }
 
+/* When the project is deleted: a caption under the title, and a warning box in its last week. */
+.deletion-caption {
+  margin: 0;
+  color: var(--fg-3);
+}
+.deletion-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--warning-fg);
+  border-radius: var(--radius-card);
+  background: var(--warning-bg);
+  color: var(--fg-1);
+}
+.deletion-notice svg {
+  flex: none;
+  margin-block-start: var(--space-1);
+  color: var(--warning-fg);
+}
+.deletion-notice p {
+  margin: 0;
+}
+
 /* A project that stopped part-way: what probably happened, and the way out. */
 .stalled-notice {
   display: flex;

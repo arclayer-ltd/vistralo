@@ -15,6 +15,7 @@ const { KEY_ID, loadKeyPair, exportPublicKey, decrypt } = require('./worker-secr
 const { loadEntitlement, loadPlan, checkQuota, checkDuration } = require('../src/entitlements.cjs');
 const { includedPlans, includedKeys, chooseKeys } = require('../src/included-ai.cjs');
 const { improvedName, storedStills } = require('../src/project-labels.cjs');
+const { sweepExpired } = require('../src/retention-sweep.cjs');
 
 // The analysis returns a full brief; narration is the part meant to be spoken.
 function narrationFrom(markdown) {
@@ -565,6 +566,14 @@ async function start() {
   // At startup nothing of ours is running, so any age qualifies.
   await reclaimAbandoned(0);
   let sweptAt = Date.now();
+  // Projects past their 3 months are deleted once an hour, between jobs, and once at start. The switch lives in the
+  // database (vistralo_retention.enabled); while it is off the database returns nothing to delete. A failure here is
+  // logged and never stops the worker. See docs/RETENTION.md.
+  let retentionAt = 0;
+  const retention = async () => {
+    try { await sweepExpired({ db, bucket }); }
+    catch (error) { console.error('Retention sweep skipped:', String(error.message || error).slice(0, 300)); }
+  };
 
   console.log('Capture worker signed in');
   // The app treats a heartbeat older than 60 s as offline, and a job can run far longer than that.
@@ -574,6 +583,7 @@ async function start() {
       await heartbeat();
       // While running, only jobs far past any plausible runtime are abandoned.
       if (Date.now() - sweptAt > 300000) { sweptAt = Date.now(); await reclaimAbandoned(1800000); }
+      if (Date.now() - retentionAt > 3600000) { retentionAt = Date.now(); await retention(); }
       const jobs = unwrap(await db.rpc('vistralo_claim_next_job'));
       const job = jobs?.[0];
       if (!job) { await new Promise((r) => setTimeout(r, 1000)); continue; }

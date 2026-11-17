@@ -14,7 +14,7 @@ Sign-in uses Supabase Auth with an email address and password; the app keeps the
 
 | Purpose | Data | Legal basis for EEA/UK processing | Retention |
 | --- | --- | --- | --- |
-| Deliver recording, upload, editing, rendering and downloads | Customer content and project/job records | `{{BASIS_AND_CONTROLLER_PROCESSOR_ROLE}}` | `{{PROJECT_RETENTION}}` |
+| Deliver recording, upload, editing, rendering and downloads | Customer content and project/job records | `{{BASIS_AND_CONTROLLER_PROCESSOR_ROLE}}` | Deleted automatically 3 months after the project is created, with its recordings, uploads and outputs; you can download it before then |
 | Authenticate and protect the service | Account email, sign-in session, access attempts and operational logs | `{{BASIS}}` | `{{SESSION_AND_LOG_RETENTION}}` |
 | Perform optional approved AI analysis | Selected frames and evidence sent to OpenAI | `{{BASIS}}` | `{{PROVIDER_RETENTION}}` |
 | Perform optional approved voice generation | Approved script sent to OpenAI text-to-speech | `{{BASIS}}` | `{{PROVIDER_RETENTION}}` |

@@ -6,6 +6,8 @@ import { filesToCopy, projectPrefix, remapPaths } from './features/duplicate';
 import { abortIfNeeded, checksum } from './checksum';
 import { posterFrame } from './poster';
 import { billingConfig } from './billing/config';
+import { setRetention } from './retention';
+import { retainFromForCopy } from '../src/retention.cjs';
 import { PLANS, freeState, limitReached, planLimit, type BillingState, type LimitKind } from './billing/plans';
 
 declare const VISTRALO_SUPABASE_URL: string;
@@ -23,7 +25,7 @@ const UPLOAD_CHUNK = 6 * 1024 * 1024;
 const ownPoster = (p:Project) => typeof p.thumbnail==='string'&&p.thumbnail.split('/')[1]===p.id&&!p.thumbnail.includes('..');
 // What a card in the library shows, picked out of the project document so that a list of
 // thousands does not carry every brief, script and file list. PostgREST reads the JSON paths.
-const SUMMARY_FIELDS = ['name','type','source','url','sourceLabel','status','error','eventAt','eventLabel','access','trashedAt','lastOpened','folder','thumbnail','video'];
+const SUMMARY_FIELDS = ['name','type','source','url','sourceLabel','status','error','eventAt','eventLabel','access','trashedAt','lastOpened','folder','thumbnail','video','retainFrom'];
 const SUMMARY_VALUES = ['progress','duration','references','collaborators','pinned','trashed'];
 export const SUMMARY_SELECT = ['id','created_at','updated_at',
   ...SUMMARY_FIELDS.map(key=>`${key}:document->>${key}`),
@@ -42,7 +44,7 @@ export function projectSummary(row:any):Project {
     id:row.id,name:text(row.name)||'Untitled project',type:row.type==='brief'?'brief':'walkthrough',
     source:['screen','web','upload'].includes(row.source)?row.source:'screen',url:text(row.url),sourceLabel:text(row.sourceLabel),
     status:['uploading','queued','processing','failed','draft','ready'].includes(row.status)?row.status:'draft',
-    progress:count(row.progress),error:text(row.error),created:row.created_at,updated:row.updated_at,
+    progress:count(row.progress),error:text(row.error),created:row.created_at,updated:row.updated_at,retainFrom:text(row.retainFrom),
     eventAt:text(row.eventAt)||row.updated_at,eventLabel:(text(row.eventLabel)||'Updated') as Project['eventLabel'],
     duration:count(row.duration),references:count(row.references),
     access:['workspace','link'].includes(row.access)?row.access:'private',
@@ -124,7 +126,10 @@ export class CloudAdapter implements WorkspaceAdapter {
     return unwrap(result);
   }
   async login(value:string){const {email,password}=JSON.parse(value);const result=await required().auth.signInWithPassword({email,password});if(result.error)throw result.error;await cloudAccount();}
-  async logout(){unwrap(await required().auth.signOut());this.urls.clear();}
+  async logout(){unwrap(await required().auth.signOut());this.urls.clear();this.retentionRead=undefined;setRetention(null);}
+  // The deletion switch, read once a session. Not installed yet or unreadable means off: no dates are shown.
+  private retentionRead?:Promise<void>;
+  private readRetention(){return this.retentionRead??=(async()=>{try{const r=await required().from('vistralo_retention').select('enabled,grace_start').maybeSingle();setRetention(!r.error&&r.data?{enabled:r.data.enabled===true,graceStart:r.data.grace_start??null}:null);}catch{setRetention(null);}})();}
   async settings(patch?:WorkspaceSettings){const account=await cloudAccount();if(patch)unwrap(await required().from('vistralo_accounts').update({display_name:String(patch.displayName||account.display_name),workspace_name:String(patch.name||account.workspace_name)}).eq('user_id',account.user_id));return {displayName:account.display_name,email:account.email,name:account.workspace_name,role:account.role};}
   private async row(id:string){await cloudAccount();const row=unwrap<{id:string,owner_id:string,document:Project,updated_at:string}>(await required().from('vistralo_projects').select('*').eq('id',id).single());return row;}
   private async sign(p:Project, only?:string[]){
@@ -141,6 +146,7 @@ export class CloudAdapter implements WorkspaceAdapter {
   }
   async list(){
     await cloudAccount();
+    void this.readRetention();
     const [rows,running]=await Promise.all([
       required().from('vistralo_projects').select('*').order('updated_at',{ascending:false}).then(unwrap),
       required().from('vistralo_jobs').select('project_id').eq('state','processing').then(unwrap),
@@ -172,6 +178,7 @@ export class CloudAdapter implements WorkspaceAdapter {
   }
   async summaries({offset,limit}:{offset:number,limit:number}):Promise<ProjectChunk>{
     await cloudAccount();
+    if(offset===0)void this.readRetention();
     const [page,running]=await Promise.all([
       this.read(columns=>required().from('vistralo_projects').select(columns,{count:'exact'}).order('updated_at',{ascending:false}).order('id').range(offset,offset+limit-1)),
       offset===0?this.runningJobs():Promise.resolve(undefined),
@@ -260,7 +267,9 @@ export class CloudAdapter implements WorkspaceAdapter {
         const target=to+file.slice(from.length);
         unwrap(await required().storage.from('vistralo-media').copy(file,target));copied.push(target);
       }
-      return await this.save(next.id,p=>({...remapPaths({...doc,data:structuredClone({...doc.data,autoName:false})},from,to),id:next.id,name:p.name,created:p.created,access:'private',collaborators:undefined,pinned:false,lastOpened:undefined,trashed:false,trashedAt:undefined,progress:undefined,error:doc.status==='failed'?doc.error:undefined,eventLabel:'Updated',eventAt:now()}));
+      // A copy keeps its original's deletion date: its 3 months count from when the original was made.
+      const retainFrom=retainFromForCopy({created:(original as {created_at?:string}).created_at,retainFrom:doc.retainFrom});
+      return await this.save(next.id,p=>({...remapPaths({...doc,data:structuredClone({...doc.data,autoName:false})},from,to),id:next.id,name:p.name,created:p.created,retainFrom,access:'private',collaborators:undefined,pinned:false,lastOpened:undefined,trashed:false,trashedAt:undefined,progress:undefined,error:doc.status==='failed'?doc.error:undefined,eventLabel:'Updated',eventAt:now()}));
     }catch(error){
       if(copied.length)await required().storage.from('vistralo-media').remove(copied).catch(()=>{});
       await this.save(next.id,p=>({...p,trashed:true,trashedAt:now()})).catch(()=>{});
@@ -271,7 +280,7 @@ export class CloudAdapter implements WorkspaceAdapter {
   async trash(ids:string[]){for(const id of ids){await this.save(id,p=>({...p,trashed:true,trashedAt:now()}));unwrap(await required().from('vistralo_shares').update({revoked:true}).eq('project_id',id));}}
   async restore(ids:string[]){await this.guard('projects');this.billing=null;for(const id of ids)await this.save(id,p=>({...p,trashed:false,trashedAt:undefined}));}
   async remove(ids:string[]){for(const id of ids){const row=await this.row(id);if(!row.document.trashed)throw Error('Move the project to Trash first.');const files=[...new Set([...Object.keys(row.document.data.files||{}),...(ownPoster({...row.document,id})?[row.document.thumbnail!]:[])])];if(files.length)unwrap(await required().storage.from('vistralo-media').remove(files));unwrap(await required().from('vistralo_projects').delete().eq('id',id));}}
-  async project(id:string):Promise<ProjectDetail>{const row=await this.row(id);const jobs=unwrap(await required().from('vistralo_jobs').select('*').eq('project_id',id).order('created_at',{ascending:false}));const started=row.document.status==='queued'&&jobs.some((job:any)=>job.state==='processing');const p=await this.sign(started?{...row.document,status:'processing'}:row.document);return {project:p,files:Object.entries(p.data.files||{}).map(([file,value]:[string,any])=>({file,...value})),evidence:p.data.evidence||null,jobs,events:[],progress:await this.liveProgress(jobs),shares:await this.shares(id),brief:p.data.brief};}
+  async project(id:string):Promise<ProjectDetail>{void this.readRetention();const row=await this.row(id);const jobs=unwrap(await required().from('vistralo_jobs').select('*').eq('project_id',id).order('created_at',{ascending:false}));const started=row.document.status==='queued'&&jobs.some((job:any)=>job.state==='processing');const p=await this.sign(started?{...row.document,status:'processing'}:row.document);return {project:p,files:Object.entries(p.data.files||{}).map(([file,value]:[string,any])=>({file,...value})),evidence:p.data.evidence||null,jobs,events:[],progress:await this.liveProgress(jobs),shares:await this.shares(id),brief:p.data.brief};}
   private async liveProgress(jobs:any[]){
     const job=jobs.find(j=>j.state==='queued'||j.state==='processing');
     if(!job)return null;
