@@ -27,7 +27,8 @@ async function loadDevices() {
   fill($("camera", HTMLSelectElement), cams, "No camera", options.camera);
   const [mic, cam] = await Promise.all([permission("microphone"), permission("camera")]);
   // Chrome asks for the microphone and camera in a page, not in this popup, so the setup page asks.
-  const needs = (options.microphone !== null && mic !== "granted") || (options.camera !== null && cam !== "granted");
+  // Camera only needs a camera; until Chrome allows it the list is empty, so say why.
+  const needs = (options.microphone !== null && mic !== "granted") || ((options.camera !== null || options.mode === "camera") && cam !== "granted");
   show("permission", needs);
 }
 

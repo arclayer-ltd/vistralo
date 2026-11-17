@@ -41,7 +41,7 @@ Start opens the recordings page with the camera on show while recording; the pop
 
 | What happens | What the person sees | What is kept |
 | --- | --- | --- |
-| Microphone not allowed | "Vistralo is not allowed to use the microphone…" in the popup | Nothing starts |
+| Microphone or camera not allowed, or allowed only "this time" and since expired | "Vistralo needs your permission to use the camera…" in the popup (a "!" badge after a shortcut), and the setup page opens | Nothing starts |
 | Chooser cancelled | Nothing; the session is cancelled | Nothing |
 | Tab closed, shared window gone, Stop sharing | The take finishes as if Stop was pressed | All of it |
 | Microphone unplugged | "The microphone was disconnected. The rest of this recording has no voice." | All of it |
