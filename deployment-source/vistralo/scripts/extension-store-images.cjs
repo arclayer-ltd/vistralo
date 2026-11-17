@@ -130,12 +130,13 @@ async function session(camera, site, run) {
       send: (m) => control.evaluate((x) => chrome.runtime.sendMessage(x), m),
       until: async (test, ms = 20000) => {
         const end = Date.now() + ms;
+        let last;
         while (Date.now() < end) {
-          const s = await snapshot();
-          if (test(s)) return s;
+          last = await snapshot();
+          if (test(last)) return last;
           await wait(200);
         }
-        throw new Error('Timed out waiting for the recording.');
+        throw new Error(`Timed out waiting for the recording; last snapshot ${JSON.stringify(last)}`);
       },
       setOptions: (o) => control.evaluate((x) => chrome.storage.local.set({ options: x }), o),
       tabOf: async (page) => {
