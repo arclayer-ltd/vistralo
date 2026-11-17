@@ -1,6 +1,6 @@
 # Vistralo service terms — DRAFT, NOT PUBLISHED
 
-Operator Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Effective `{{EFFECTIVE_DATE}}`
 
 **Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft written for Vistralo's own facts as the code shows them on 13 October 2026. It is not legal advice. Sections 12 to 15 in particular are placeholders for counsel, because what may be excluded or limited depends on where customers live.
 
@@ -8,7 +8,7 @@ The repository's MIT licence covers the open-source code. These terms cover the 
 
 ## 1. Who these terms are between
 
-These terms are an agreement between Dynamix LTD ("Vistralo", "we") and the person or organisation that opens an account ("you"). If you use Vistralo for an organisation, you confirm that you may accept these terms for it. `{{MINIMUM_AGE_AND_ELIGIBILITY}}`
+These terms are an agreement between Rezan Ferdous, who runs Vistralo as an individual ("Vistralo", "we"), and the person or organisation that opens an account ("you"). If you use Vistralo for an organisation, you confirm that you may accept these terms for it. `{{MINIMUM_AGE_AND_ELIGIBILITY}}`
 
 ## 2. What the service is
 
@@ -16,7 +16,7 @@ Vistralo turns a screen recording, an uploaded video, a set of screenshots or a 
 
 ## 3. Your account
 
-You need an email address and a password to open an account, and you must confirm the address before you can sign in. Keep the password to yourself and tell us at contact@vistralo.com if you think someone else has used your account. You are responsible for what is done through it. `{{ACCOUNT_ROLES_IF_TEAMS_ARE_ADDED}}`
+You need an email address and a password to open an account, and you must confirm the address before you can sign in. Keep the password to yourself and tell us at hello@arclayer.co if you think someone else has used your account. You are responsible for what is done through it. `{{ACCOUNT_ROLES_IF_TEAMS_ARE_ADDED}}`
 
 ## 4. Your content
 
@@ -88,7 +88,7 @@ We may change or remove features. If a change materially reduces what a paid pla
 
 We may suspend an account that breaks these terms or the Acceptable Use Policy, that puts the service or other customers at risk, or where the law requires it. Where we reasonably can, we will tell you first and give you a chance to put things right. `{{SUSPENSION_PROCESS}}`
 
-You may stop using Vistralo at any time. To close your account and have your content deleted, email contact@vistralo.com from the address on the account. `{{ACCOUNT_DELETION_AND_EXPORT_PROCESS_ONCE_BUILT_AND_TESTED}}` A paid subscription must be cancelled first, or it will be cancelled as part of closing the account. `{{CONFIRM}}`
+You may stop using Vistralo at any time. To close your account and have your content deleted, email hello@arclayer.co from the address on the account. `{{ACCOUNT_DELETION_AND_EXPORT_PROCESS_ONCE_BUILT_AND_TESTED}}` A paid subscription must be cancelled first, or it will be cancelled as part of closing the account. `{{CONFIRM}}`
 
 ## 11. Privacy
 
@@ -108,11 +108,11 @@ The Privacy Notice explains what personal data Vistralo handles and why. If you 
 
 ## 15. Changes to these terms
 
-`{{NOTICE_PROCESS}}` Earlier versions are kept and can be requested from contact@vistralo.com.
+`{{NOTICE_PROCESS}}` Earlier versions are kept and can be requested from hello@arclayer.co.
 
 ## 16. Contact
 
-Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh. Email contact@vistralo.com.
+Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh. Email hello@arclayer.co.
 
 ## Facts to check before publishing
 

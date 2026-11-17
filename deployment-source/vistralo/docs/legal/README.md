@@ -1,6 +1,10 @@
 # Vistralo legal publication gate
 
-**Drafts only — not approved legal notices. Do not copy these to a public page or describe Vistralo as legally compliant.** Neither https://vistralo.com nor https://app.vistralo.com links to a legal notice yet. The MIT software license does not replace a service privacy notice or customer terms.
+**One notice is published: the privacy policy.** `PRIVACY.md` is built into https://app.vistralo.com/privacy by `scripts/build-web.cjs` (through `scripts/legal-page.cjs`, which fails the build on a leftover `{{FIELD}}`, a table or raw HTML). It is linked from the app's sign-in page and Help menu, the share page footer and the extension's setup page. It was written from verified facts on 17 November 2026 and has not yet been reviewed by a lawyer.
+
+**Everything else here is a draft — not an approved legal notice. Do not copy these to a public page or describe Vistralo as legally compliant.** The MIT software license does not replace a service privacy notice or customer terms.
+
+Operator (confirmed by the owner, 17 November 2026): **Rezan Ferdous, an individual**, Enayetpur, Sirajganj, Bangladesh. Contact and support: **hello@arclayer.co**. This replaces the Dynamix LTD details the drafts used before.
 
 The drafts here map product behavior to information a reviewer needs. Replace every `{{FIELD}}` with verified operator facts, obtain jurisdiction-appropriate legal review, then publish versioned notices and link them from the app's sign-in page and settings and from the landing footer **before** opening signups. Show material updates to existing users and retain the prior versions.
 
@@ -11,7 +15,7 @@ Every page the blueprint lists now has a draft. None is approved, none is publis
 | Page | File | Open fields | What mainly holds it up |
 | --- | --- | --- | --- |
 | Service terms | `TERMS-DRAFT.md` | 21 | Warranties, liability and governing law are left wholly to counsel; confirmed plans; the account deletion process |
-| Privacy notice | `PRIVACY-DRAFT.md` | 24 | Hosting countries, retention periods, lawful bases, transfer safeguards; for the Chrome extension section (17 November 2026), confirming who may view customer recordings |
+| Privacy policy | `PRIVACY.md` | 0 | **Published** at https://app.vistralo.com/privacy (17 November 2026). Still wants a lawyer's review |
 | Browser storage notice | `STORAGE-NOTICE-DRAFT.md` | 2 | What Paddle's checkout stores in the browser |
 | Refund policy | `REFUND-POLICY-DRAFT.md` | 14 | The refund window and renewal rule, which are the operator's decision; the consumer withdrawal right |
 | Acceptable use policy | `ACCEPTABLE-USE-DRAFT.md` | 7 | The appeal process; duties to report content |
@@ -50,7 +54,7 @@ Do not launch public multi-user signups based on these draft notices. No analyti
 
 ## Decisions required before publication
 
-1. Operator is a software company in Bangladesh named **Dynamix LTD**; supplied address is **Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh**. Supplied contact is **contact@vistralo.com** and website is **vistralo.com**. Confirm company registration details, operational mailbox and domain ownership; role as controller or processor for each data set; age/audience; whether service is sold to US, EEA or UK residents.
+1. Operator: Rezan Ferdous, an individual, Enayetpur, Sirajganj, Bangladesh; contact hello@arclayer.co; website vistralo.com (confirmed 17 November 2026; replaces Dynamix LTD and its Dhaka address). Still to settle: role as controller or processor for each data set in the drafts other than the privacy policy; whether a full postal address must be published where Vistralo is sold.
 2. Hosting and backup countries; exact retention/deletion schedule for projects, uploads, sessions, logs, backups and provider data; rights request identity-check and response workflow.
 3. OpenAI and host contracts, subprocessors, international transfer safeguards, and whether EU and UK representatives or a DPO are required.
 4. Whether California CCPA/CPRA applies to the operator and whether data is sold/shared; other US state thresholds and rights if public service expands.

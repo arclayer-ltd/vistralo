@@ -13,6 +13,8 @@ server-ui/plans.json
 server-ui/watch.html
 server-ui/watch.js
 server-ui/watch.css
+server-ui/privacy.html
+server-ui/legal.css
 server-ui/index.html
 server-ui/hash-worker.js
 dist-web/

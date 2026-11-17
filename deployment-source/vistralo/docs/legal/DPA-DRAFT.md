@@ -1,12 +1,12 @@
 # Vistralo data processing addendum — DRAFT, NOT PUBLISHED
 
-Operator Dynamix LTD, Mirpur 12, Eastern Housing, Road10, House 123, 2nd Floor, Dhaka 1216, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Version `{{VERSION_AND_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Version `{{VERSION_AND_DATE}}`
 
 **Not approved. Do not publish, link or sign this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft and is not legal advice. A data processing agreement has legal effect, and several clauses below depend on choices only counsel can make: which transfer mechanism applies to a processor established in Bangladesh, whether representatives in the EU and UK are required, and the liability terms. The draft sets out the facts of the processing so that review can start from something accurate.
 
 ## 1. When this addendum applies
 
-It applies when a customer uses Vistralo to process personal data that the customer is responsible for under data protection law, for example recordings that show the customer's own users or staff. In that case the customer is the controller and Dynamix LTD ("Vistralo") is the processor. It forms part of the service terms. `{{HOW_IT_IS_ACCEPTED: BY REFERENCE IN THE TERMS, OR BY SIGNATURE}}`
+It applies when a customer uses Vistralo to process personal data that the customer is responsible for under data protection law, for example recordings that show the customer's own users or staff. In that case the customer is the controller and Rezan Ferdous ("Vistralo") is the processor. It forms part of the service terms. `{{HOW_IT_IS_ACCEPTED: BY REFERENCE IN THE TERMS, OR BY SIGNATURE}}`
 
 It does not cover data for which Vistralo is itself the controller: the customer's account details, billing records and service logs. The Privacy Notice covers those.
 

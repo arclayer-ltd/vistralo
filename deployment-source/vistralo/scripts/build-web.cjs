@@ -3,6 +3,7 @@ const esbuild = require("esbuild"),
   fs = require("node:fs"),
   path = require("node:path");
 const { billingDefines } = require("./billing-env.cjs");
+const { page: legalPage } = require("./legal-page.cjs");
 // The browser tests build a second copy with plans switched on; everything else writes to server-ui.
 const out = process.env.VISTRALO_WEB_OUT || "server-ui";
 (async () => {
@@ -36,7 +37,17 @@ const out = process.env.VISTRALO_WEB_OUT || "server-ui";
   fs.copyFileSync("web/share/watch.css", path.join(out, "watch.css"));
   fs.writeFileSync(
     path.join(out, "watch.html"),
-    '<!doctype html>\n<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta name="color-scheme" content="light dark"><title>Shared with you · Vistralo</title><link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/watch.css"><script src="/watch.js"></script></head><body>\n<header class="watch-bar"><a class="watch-brand" href="https://vistralo.com/"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M4 4H24L20 8H8V20L4 24Z M28 8V28H8L12 24H24V12Z"/></svg>vistralo</a><span class="watch-edge">Shared with you · Read only</span></header>\n<main id="watch" class="watch-main" aria-busy="true"><p class="watch-status" role="status">Opening the shared link…</p></main>\n<footer class="watch-foot"><p>Made with <a href="https://vistralo.com/">Vistralo</a>, which turns a screen recording into a narrated walkthrough.</p><p>Something wrong with this page? Write to <a href="mailto:contact@vistralo.com">contact@vistralo.com</a>.</p></footer>\n</body></html>\n',
+    '<!doctype html>\n<html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta name="color-scheme" content="light dark"><title>Shared with you · Vistralo</title><link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/watch.css"><script src="/watch.js"></script></head><body>\n<header class="watch-bar"><a class="watch-brand" href="https://vistralo.com/"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M4 4H24L20 8H8V20L4 24Z M28 8V28H8L12 24H24V12Z"/></svg>vistralo</a><span class="watch-edge">Shared with you · Read only</span></header>\n<main id="watch" class="watch-main" aria-busy="true"><p class="watch-status" role="status">Opening the shared link…</p></main>\n<footer class="watch-foot"><p>Made with <a href="https://vistralo.com/">Vistralo</a>, which turns a screen recording into a narrated walkthrough.</p><p>Something wrong with this page? Write to <a href="mailto:hello@arclayer.co">hello@arclayer.co</a>. <a href="/privacy">Privacy policy</a>.</p></footer>\n</body></html>\n',
+  );
+  // The public privacy policy (/privacy), from the same file the repository keeps under docs/legal.
+  fs.copyFileSync("web/legal/legal.css", path.join(out, "legal.css"));
+  fs.writeFileSync(
+    path.join(out, "privacy.html"),
+    legalPage({
+      markdown: fs.readFileSync("docs/legal/PRIVACY.md", "utf8"),
+      path: "/privacy",
+      description: "What Vistralo collects, why, who else handles it, how long it is kept (projects are deleted 3 months after they are made) and how to reach us.",
+    }),
   );
   fs.copyFileSync("web/styles/tokens.css", path.join(out, "tokens.css"));
   // Published so the pricing page on vistralo.com can be built from the same plan table.

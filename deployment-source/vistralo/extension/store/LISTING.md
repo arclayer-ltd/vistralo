@@ -2,7 +2,7 @@
 
 Everything to paste into the Chrome Web Store developer dashboard, field by field. Written 17 November 2026 against extension version 0.1.0 and Google's published rules on that date (sources at the end). `store/SUBMIT.md` says in which order to fill it in.
 
-`{{...}}` marks a fact only the owner can supply. Each is listed in `SUBMIT.md`.
+`{{...}}` would mark a fact only the owner can supply; none are left. The owner's remaining choices (the trader declaration) are in `SUBMIT.md`.
 
 ## From the manifest (not editable in the dashboard)
 
@@ -41,7 +41,7 @@ You need a Vistralo account to turn a recording into a walkthrough. Recording, r
 Permissions
 Vistralo only records after you click it in the toolbar and press Start. It asks to draw its controls on every site only if you tick that option; otherwise they stay on the page you started on.
 
-Privacy policy: {{PRIVACY_POLICY_URL}}
+Privacy policy: https://app.vistralo.com/privacy
 Help: hello@arclayer.co
 ```
 
@@ -114,7 +114,7 @@ A screen recording can show anything the user puts on screen. The extension does
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
-**Privacy policy URL:** `{{PRIVACY_POLICY_URL}}`. It must be live, public and include the extension section and Limited Use statement from `docs/legal/PRIVACY-DRAFT.md` before submitting.
+**Privacy policy URL:** `https://app.vistralo.com/privacy`. It is built from `docs/legal/PRIVACY.md` and includes the extension section and the Limited Use statement. Open it in a private window before submitting to check it loads without signing in.
 
 ## Distribution tab
 

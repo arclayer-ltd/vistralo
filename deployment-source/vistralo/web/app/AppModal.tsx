@@ -45,16 +45,16 @@ export function AppModal({
         title="Contact support"
         icon="mail"
         size="compact"
-        description="Contact Dynamix LTD for Vistralo support."
+        description="Email us for help with Vistralo."
         onClose={close}
         footer={
           <a
-            href="mailto:contact@vistralo.com"
+            href="mailto:hello@arclayer.co"
             className="button button-primary"
             data-autofocus
           >
             <Icon name="mail" />
-            contact@vistralo.com
+            hello@arclayer.co
           </a>
         }
       >
