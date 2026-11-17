@@ -25,7 +25,7 @@ The model is `{{MODEL_NAMES_IN_PRODUCTION}}`. If that model refuses the request 
 
 ## What is sent for the voice, and when
 
-The script is sent to OpenAI's speech service as text, one spoken line at a time. No pictures and none of your recording. For a website project the script is sent only after you have read and approved it. For a recording, the walkthrough is made in one step: the script is written and voiced without a pause for review, and you can edit it and make the voice-over again afterwards. `{{CONFIRM_THE_APPROVAL_STEP_FOR_EACH_FLOW_AS_SHIPPED}}`
+The script is sent to OpenAI's speech service as text, one spoken line at a time. No pictures and none of your recording. For a website project the script is sent only after you have read and approved it. For a recording, the script is written and then stops for you to read and edit it; nothing is voiced until you approve it. You can turn that review off in the create sheet, and the walkthrough is then written and voiced in one step. `{{CONFIRM_THE_APPROVAL_STEP_FOR_EACH_FLOW_AS_SHIPPED}}`
 
 OpenAI returns audio, which is stored with your project. What OpenAI retains from speech requests is governed by your agreement with OpenAI: `{{LINK_AND_SUMMARY_AFTER_CHECKING_OPENAI'S_CURRENT_SPEECH_TERMS}}`. The voice is synthetic, and `{{WHETHER_AND_HOW_VISTRALO_DISCLOSES_TO_LISTENERS_THAT_THE_VOICE_IS_AI}}`.
 

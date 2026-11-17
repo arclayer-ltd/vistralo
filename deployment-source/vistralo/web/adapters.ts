@@ -1,4 +1,5 @@
 import { CloudAdapter } from "./cloud";
+import { walkthroughScriptEdit } from "./features/flow-utils";
 import type {
   AppMode,
   WorkspaceAdapter,
@@ -911,6 +912,21 @@ class DemoAdapter implements WorkspaceAdapter {
         message:
           "Local demo only. Setup checks run in your Vistralo cloud workspace.",
       };
+    else if (method === "walkthroughScriptSave")
+      result = this.mutate((store) => {
+        const project = this.find(store, args.id);
+        const draft = project.data.walkthroughDraft;
+        if (!draft || !Array.isArray(draft.stops))
+          throw new Error("There is no script to edit yet.");
+        const edited = walkthroughScriptEdit(draft, args.stops, args.closing);
+        project.data = { ...project.data, walkthroughDraft: { ...draft, ...edited }, scriptApproved: false };
+        Object.assign(project, { updated: now(), eventAt: now(), eventLabel: "Edited" });
+        return project;
+      });
+    else if (method === "walkthroughApprove")
+      throw new UnsupportedOperationError(
+        "Voicing a script needs a Vistralo cloud workspace with OpenAI. Your edits are saved in this demo.",
+      );
     else if (method === "transcript")
       throw new UnsupportedOperationError(
         "Word-timed transcript processing requires a Vistralo cloud workspace.",

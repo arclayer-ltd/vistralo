@@ -6,6 +6,7 @@ import { EditorTab } from "./project/EditorTab";
 import { FilesTab } from "./project/FilesTab";
 import { JobFailure, JobProgress } from "./project/JobProgress";
 import { OverviewTab } from "./project/OverviewTab";
+import { WalkthroughScript, awaitingReview } from "./project/WalkthroughScript";
 import { NextStep, ProjectHeader } from "./project/ProjectHeader";
 import { ShareFirst } from "./project/ShareFirst";
 import { StalledNotice } from "./project/StalledNotice";
@@ -58,6 +59,7 @@ export function ProjectDetail({
     setScript,
     scriptDirty,
     setScriptDirty,
+    setDraftDirty,
     source,
     setSource,
     duration,
@@ -280,6 +282,15 @@ export function ProjectDetail({
           aria-labelledby={`project-tab-${tab}`}
           tabIndex={0}
         >
+          {tab === "overview" && awaitingReview(project) && (
+            <WalkthroughScript
+              adapter={adapter}
+              project={project}
+              processing={processing}
+              action={action}
+              onDirty={setDraftDirty}
+            />
+          )}
           {tab === "overview" && (
             <OverviewTab
               project={project}

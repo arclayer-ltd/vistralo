@@ -6,6 +6,7 @@ import { Icon } from "../../components/Icon";
 import { Button } from "../../components/Controls";
 import { formatDuration } from "../flow-utils";
 import type { ProjectAction } from "./useProjectDetail";
+import { reviewScriptPreferred } from "../flow-utils";
 
 export function ProjectHeader({
   project,
@@ -108,8 +109,10 @@ export function NextStep({
           onClick={() =>
             void action(
               "Adding voice-over",
-              () => adapter.rpc("voiceover", { id: project.id }),
-              "Voice-over started. Vistralo is writing the narration from the video.",
+              () => adapter.rpc("voiceover", { id: project.id, review: reviewScriptPreferred() }),
+              reviewScriptPreferred()
+                ? "Vistralo is writing the narration. It stops for you to read it before the voice is added."
+                : "Voice-over started. Vistralo is writing the narration from the video.",
             )
           }
         >

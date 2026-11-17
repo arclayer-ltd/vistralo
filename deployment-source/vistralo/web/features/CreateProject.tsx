@@ -10,6 +10,8 @@ import { RecordFlow } from "./create/RecordFlow";
 import { RecordSetup } from "./create/RecordSetup";
 import { ScreenshotsFlow } from "./create/ScreenshotsFlow";
 import { SiteUrlField } from "./create/SiteUrlField";
+import { SheetToggle } from "../components/Primitives";
+import { REVIEW_SCRIPT_KEY, reviewScriptPreferred } from "./flow-utils";
 import { UploadVideoFlow } from "./create/UploadVideoFlow";
 import { WebsiteFlow } from "./create/WebsiteFlow";
 import { useFloatingTray, useRecordingMeters, useRecordingSignal } from "./create/recorder-effects";
@@ -42,6 +44,16 @@ export function CreateProject({
   const [narrate, setNarrate] = useState(false),
     [voiceover, setVoiceover] = useState(true);
   const [mobile, setMobile] = useState(true);
+  // Reading the script before it is voiced is the default; the choice is remembered in this browser.
+  const [reviewScript, setReviewScriptState] = useState(reviewScriptPreferred);
+  const setReviewScript = (value: boolean) => {
+    setReviewScriptState(value);
+    try {
+      localStorage.setItem(REVIEW_SCRIPT_KEY, value ? "on" : "off");
+    } catch {
+      /* storage unavailable: the choice lasts for this sheet only */
+    }
+  };
   const [error, setError] = useState(""),
     // Set when the dialog opens onto a recording left over from an earlier visit.
     [leftOver, setLeftOver] = useState<Date | null>(null),
@@ -85,6 +97,7 @@ export function CreateProject({
     mobile,
     narrate,
     voiceover,
+    review: offersVoiceover && reviewScript,
     spoken,
     activeRecording,
     offersVoiceover,
@@ -94,11 +107,26 @@ export function CreateProject({
     onCreated,
   });
   const siteUrlField = offersVoiceover && (
-    <SiteUrlField
-      url={url}
-      setUrl={setUrl}
-      disabled={busy || !!created.current}
-    />
+    <>
+      <SiteUrlField
+        url={url}
+        setUrl={setUrl}
+        disabled={busy || !!created.current}
+      />
+      <div className="sheet-group">
+        <SheetToggle
+          label="Review the script before it's voiced"
+          hint={
+            reviewScript
+              ? "Vistralo writes the narration for each screen and stops, so you can read and edit it. The voice is added when you approve it."
+              : "The narration is written and voiced in one go."
+          }
+          checked={reviewScript}
+          onChange={setReviewScript}
+          disabled={busy || !!created.current}
+        />
+      </div>
+    </>
   );
 
   useEffect(() => {

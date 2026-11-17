@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { WorkspaceAdapter, Project, ProjectChunk, ProjectDetail, CreateProjectInput, ProjectPatch, UploadOptions, WorkspaceSettings, ShareLink } from './contracts';
 import { uuid } from './id';
+import { walkthroughScriptEdit } from './features/flow-utils';
 import { abortIfNeeded, checksum } from './checksum';
 import { posterFrame } from './poster';
 import { billingConfig } from './billing/config';
@@ -330,7 +331,7 @@ export class CloudAdapter implements WorkspaceAdapter {
       const voiceover=options.voice==='ai'||(saved.document.source==='screen'&&options.voice!=='original');
       if(voiceover){
         if(!await this.workerReady())return {file:target,sha256:digest,voice:'offline' as const};
-        await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:id,owner_id:account.user_id,kind:'narrate',payload:{auto:true}}));
+        await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:id,owner_id:account.user_id,kind:'narrate',payload:{auto:true,...(options.review?{review:true}:{})}}));
         await this.save(id,p=>({...p,status:'queued'}));
         return {file:target,sha256:digest,voice:'queued' as const};
       }
@@ -408,7 +409,26 @@ export class CloudAdapter implements WorkspaceAdapter {
       if(row.document.trashed)throw Error('Restore this project first.');
       if(!row.document.video)throw Error('Upload a recording before adding an AI voice-over.');
       await this.guard('jobs');
-      const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind:'narrate',payload:{auto:true}}).select().single());
+      const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind:'narrate',payload:{auto:true,...(args.review===true?{review:true}:{})}}).select().single());
+      await this.save(args.id,p=>({...p,status:'queued',error:undefined}));
+      return job as T;
+    }
+    if(method==='walkthroughScriptSave'){
+      const row=await this.row(args.id);const draft=row.document.data.walkthroughDraft;
+      if(!draft||!Array.isArray(draft.stops))throw Error('There is no script to edit yet.');
+      const edited=walkthroughScriptEdit(draft,args.stops,args.closing);
+      return await this.save(args.id,p=>({...p,eventLabel:'Edited',eventAt:now(),data:{...p.data,walkthroughDraft:{...p.data.walkthroughDraft,...edited},scriptApproved:false}})) as T;
+    }
+    // The worker voices exactly the saved draft and marks it approved when the film is made, so a failed
+    // voice job leaves the script in place to approve again.
+    if(method==='walkthroughApprove'){
+      if(!await this.workerReady())throw Error('The capture and render worker is offline. Your script is saved; try again when it reconnects.');
+      const row=await this.row(args.id);const draft=row.document.data.walkthroughDraft;
+      if(row.document.trashed)throw Error('Restore this project first.');
+      if(!draft||!Array.isArray(draft.stops)||!draft.stops.length)throw Error('There is no script to voice yet.');
+      if(![...draft.stops.map((s:{text?:string})=>s.text),draft.closing].some(t=>String(t||'').trim()))throw Error('Every screen is silent. Write narration for at least one screen.');
+      await this.guard('jobs');
+      const job=await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:args.id,owner_id:row.owner_id,kind:'narrate',payload:{auto:true,approved:true}}).select().single());
       await this.save(args.id,p=>({...p,status:'queued',error:undefined}));
       return job as T;
     }

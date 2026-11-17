@@ -210,9 +210,12 @@ async function start() {
     };
   }
 
-  // One Create Walkthrough click: find every screen in the recording, write a creative director's narration for each,
-  // then freeze the video on each screen while its part is spoken.
-  async function voiceFromRecording(job, p, nativeId, nativeRoot, files) {
+  // A walkthrough's stops are edited by people between the two review steps, so only plain, bounded text is voiced.
+  const STOP_TEXT = 2000;
+  const cleanStopText = (value) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, STOP_TEXT);
+
+  // The recording to narrate, downloaded, checked and measured.
+  async function prepareRecording(job, p, nativeId, nativeRoot, files) {
     // Narrating again starts from the recording, not from the previous voice-over.
     const source = p.video && p.video === p.data.narratedVideo ? p.data.walkthroughVideo : p.video;
     assert(typeof source === 'string' && files[source], 'Recording is missing');
@@ -225,9 +228,13 @@ async function start() {
     const sourcePath = within(nativeRoot, imported.file, true);
     const duration = await service.media.measureDuration(sourcePath);
     checkDuration(entitlement, duration);
-    const settings = await settingsFor(job.owner_id);
-    settings.need('openai');
     const picture = (await service.media.probe(sourcePath)).streams.find((s) => s.codec_type === 'video') || {};
+    return { source, imported, sourcePath, duration, picture };
+  }
+
+  // Finds every screen in the recording and has the director write a stop for each; nothing is voiced yet.
+  async function draftWalkthrough(job, p, nativeId, nativeRoot, settings, rec) {
+    const { imported, sourcePath, duration, picture } = rec;
     // With a website address, the live site is read in the background while the recording is scanned.
     // A failed read only means every build claim stays "likely"; it never fails the walkthrough.
     const siteUrl = publicUrl(p.url);
@@ -265,9 +272,10 @@ async function start() {
     const budget = Math.round(Math.max(60, Math.min(3 * duration, 360) - duration - views.length * 0.5) * 2.4);
     // The whole film is priced before the first paid call, so a job over the cap stops before it spends anything:
     // the script, plus speech for the full word budget at about 6 characters a word, at least 1 cent per screen.
+    // A script made for review is priced the same way, because approving it voices it within the same cap.
     const directorEstimate = Number((0.1 + views.length * 0.008).toFixed(2));
     const voiceEstimate = Math.max(Number((views.length * 0.01).toFixed(2)), speechEstimate(budget * 6));
-    assert(directorEstimate + voiceEstimate <= settings.cap + 1e-9, `This walkthrough is estimated at $${(directorEstimate + voiceEstimate).toFixed(2)} (${views.length} screens), above its $${settings.cap.toFixed(2)} cost cap. Raise the cap in Settings and retry.`);
+    assert(directorEstimate + voiceEstimate <= settings.cap + 1e-9, `This walkthrough is estimated at $${(directorEstimate + voiceEstimate).toFixed(2)} (${views.length} screens), above your $${settings.cap.toFixed(2)} cost cap. Raise the cap in Settings and retry.`);
     let drafted;
     for (const [i, model] of models.entries()) {
       try {
@@ -292,10 +300,15 @@ async function start() {
         console.warn(`Director model ${model} was rejected (HTTP ${error.status}); trying ${models[i + 1]}`);
       }
     }
-    const stops = drafted.stops.map((stop, i) => ({ ...stop, ref: i }));
-    const closing = [drafted.closing, drafted.closingStack].filter(Boolean).join(' ');
-    if (closing) stops.push({ at: views.at(-1).at, label: 'Design system', text: closing });
+    return { drafted, evidence, siteUrl, holds };
+  }
+
+  // Voices every spoken stop, freezes the recording on each while it plays, and writes the build brief.
+  async function voiceWalkthrough(job, p, nativeId, nativeRoot, files, settings, rec, { drafted, evidence, siteUrl, closing }) {
+    const stops = drafted.stops.map((stop, i) => ({ at: stop.at, label: stop.label, text: stop.text, ref: i }));
+    if (closing) stops.push({ at: drafted.stops.at(-1).at, label: 'Design system', text: closing });
     const spoken = stops.filter((stop) => stop.text);
+    assert(spoken.length, 'Every screen is silent. Write narration for at least one screen.');
     for (const [i, stop] of spoken.entries()) {
       await reportProgress(job, { percent: 30 + Math.round((i / spoken.length) * 45), stage: 'Generating voice', detail: `Screen ${i + 1} of ${spoken.length}` });
       const speech = await providersFor(settings).speech(nativeId, {
@@ -309,7 +322,7 @@ async function start() {
       stop.audio = speech.file;
     }
     await reportProgress(job, { percent: 78, stage: 'Attaching voice', detail: `Pausing on ${spoken.length} screens while each is explained` });
-    const composed = await composeWalkthrough(service.media, nativeRoot, { video: imported.file, stops: spoken }, { signal });
+    const composed = await composeWalkthrough(service.media, nativeRoot, { video: rec.imported.file, stops: spoken }, { signal });
     await reportProgress(job, { percent: 95, stage: 'Saving walkthrough', detail: 'Uploading the narrated video' });
     const video = await upload(job, composed.file, nativeRoot, files);
     const captions = await upload(job, composed.captions, nativeRoot, files);
@@ -317,6 +330,7 @@ async function start() {
     // The brief is a by-product: losing it must not lose the finished film.
     let buildBrief = null;
     try {
+      if (evidence) fs.writeFileSync(within(nativeRoot, 'build-evidence.json'), JSON.stringify(evidence, null, 2));
       const brief = writeBrief(nativeRoot, {
         url: siteUrl,
         evidence,
@@ -351,13 +365,77 @@ async function start() {
         designSystem: drafted.system,
         buildBrief,
         scriptError: null,
-        walkthroughVideo: source,
-        sourceMaster: p.data.sourceMaster || source,
+        walkthroughVideo: rec.source,
+        sourceMaster: p.data.sourceMaster || rec.source,
         narratedVideo: video,
         captions,
         voiceId: providersFor(settings).voiceId(),
         output: { ...composed, file: video },
         mediaInfo: { duration: composed.duration, width: stream.width, height: stream.height },
+      },
+    };
+  }
+
+  // A narrate job with payload.auto takes one of three shapes:
+  // - neither flag: one click, the script is written and voiced straight away;
+  // - review: the script is written and saved as walkthroughDraft for the owner to read and edit; nothing is voiced;
+  // - approved: the owner's edited walkthroughDraft is voiced, without writing a new script.
+  async function voiceFromRecording(job, p, nativeId, nativeRoot, files) {
+    const settings = await settingsFor(job.owner_id);
+    settings.need('openai');
+    if (job.payload.approved) {
+      const draft = p.data.walkthroughDraft;
+      assert(draft && Array.isArray(draft.stops) && draft.stops.length, 'There is no script to voice. Write the narration first.');
+      const rec = await prepareRecording(job, p, nativeId, nativeRoot, files);
+      const stops = draft.stops.slice(0, 60).map((stop) => ({
+        at: Math.min(Math.max(0, Number(stop.at) || 0), rec.duration),
+        label: String(stop.label || '').slice(0, 120),
+        text: cleanStopText(stop.text),
+        build: stop.build && typeof stop.build === 'object' ? stop.build : null,
+      }));
+      const closing = cleanStopText(draft.closing);
+      const total = [...stops.map((s) => s.text), closing].filter(Boolean).reduce((sum, text) => sum + speechEstimate(text.length), 0);
+      assert(total <= settings.cap + 1e-9, `Voicing this script is estimated at $${total.toFixed(2)}, above your $${settings.cap.toFixed(2)} cost cap. Shorten it or raise the cap in Settings.`);
+      let evidence = null;
+      if (typeof draft.evidence === 'string' && files[draft.evidence]) {
+        try {
+          const { data, error } = await bucket.download(draft.evidence);
+          if (error) throw error;
+          evidence = JSON.parse(await data.text());
+        } catch (error) { console.warn('Saved build evidence could not be read', String(error.message || error).slice(0, 200)); }
+      }
+      const drafted = { model: draft.model || null, system: draft.system || null, stack: draft.stack || null, closingStack: draft.closingStack || '', stops };
+      return voiceWalkthrough(job, p, nativeId, nativeRoot, files, settings, rec, { drafted, evidence, siteUrl: publicUrl(p.url), closing });
+    }
+    const rec = await prepareRecording(job, p, nativeId, nativeRoot, files);
+    const { drafted, evidence, siteUrl, holds } = await draftWalkthrough(job, p, nativeId, nativeRoot, settings, rec);
+    const closing = [drafted.closing, drafted.closingStack].filter(Boolean).join(' ');
+    if (!job.payload.review) return voiceWalkthrough(job, p, nativeId, nativeRoot, files, settings, rec, { drafted, evidence, siteUrl, closing });
+
+    await reportProgress(job, { percent: 90, stage: 'Saving script', detail: 'Ready for you to read before it is voiced' });
+    // Each stop keeps its still, so the editor shows the screen its words are about.
+    const frames = [];
+    for (const hold of holds) frames.push(await upload(job, hold, nativeRoot, files));
+    const evidenceFile = evidence ? await upload(job, 'build-evidence.json', nativeRoot, files) : null;
+    return {
+      status: 'draft',
+      eventLabel: 'Script ready',
+      data: {
+        ...p.data, files,
+        walkthroughDraft: {
+          model: drafted.model,
+          system: drafted.system,
+          stack: drafted.stack,
+          closingStack: drafted.closingStack,
+          closing,
+          evidence: evidenceFile,
+          draftedAt: new Date().toISOString(),
+          stops: drafted.stops.map((stop, i) => ({ at: stop.at, label: stop.label, text: stop.text, frame: frames[i] || null, build: stop.build || null })),
+        },
+        scriptApproved: false,
+        scriptModel: drafted.model,
+        designSystem: drafted.system,
+        scriptError: null,
       },
     };
   }
@@ -610,7 +688,7 @@ async function start() {
         const latest = unwrap(await db.from('vistralo_projects').select('document,updated_at').eq('id', job.project_id).single());
         assert(!latest.document.trashed, 'Project moved to Trash during processing');
         const at = new Date().toISOString();
-        const saved = unwrap(await db.from('vistralo_projects').update({ document: { ...latest.document, ...changes, status: job.kind === 'probe' ? 'draft' : 'ready', eventAt: at, error: null }, updated_at: at }).eq('id', job.project_id).eq('updated_at', latest.updated_at).select('id'));
+        const saved = unwrap(await db.from('vistralo_projects').update({ document: { ...latest.document, ...changes, status: changes.status || (job.kind === 'probe' ? 'draft' : 'ready'), eventAt: at, error: null }, updated_at: at }).eq('id', job.project_id).eq('updated_at', latest.updated_at).select('id'));
         assert(saved.length === 1, 'Project changed during output save');
         unwrap(await db.from('vistralo_jobs').update({ state: 'ready', finished_at: at, progress: {} }).eq('id', job.id));
         console.log('Finished', job.id);

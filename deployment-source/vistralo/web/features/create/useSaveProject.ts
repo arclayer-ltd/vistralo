@@ -22,6 +22,8 @@ interface SaveOptions {
   mobile: boolean;
   narrate: boolean;
   voiceover: boolean;
+  /** With an AI voice, stop after the script so the owner can edit it before it is voiced. */
+  review: boolean;
   spoken: boolean;
   activeRecording: boolean;
   offersVoiceover: boolean;
@@ -43,6 +45,7 @@ export function useSaveProject({
   mobile,
   narrate,
   voiceover,
+  review,
   spoken,
   activeRecording,
   offersVoiceover,
@@ -137,6 +140,7 @@ export function useSaveProject({
         const uploaded = await adapter.upload(project.id, media!, {
           signal: controller.current.signal,
           onProgress: setProgress,
+          review,
           ...(source === "screen" && spoken
             ? { voice: "microphone" as const }
             : source === "upload" && offersVoiceover
@@ -156,7 +160,9 @@ export function useSaveProject({
             : voice === "microphone"
               ? "Recording saved with your voice."
               : voice === "queued"
-              ? "Upload finished. Vistralo is writing the narration and adding the AI voice. This takes a few minutes."
+              ? review
+                ? "Upload finished. Vistralo is writing the narration; open the project to read it before it is voiced."
+                : "Upload finished. Vistralo is writing the narration and adding the AI voice. This takes a few minutes."
               : voice === "offline"
                 ? "Recording saved. The capture worker is offline, so the voice was not started."
               : "Recording uploaded. The worker checks its checksum before processing it.",
