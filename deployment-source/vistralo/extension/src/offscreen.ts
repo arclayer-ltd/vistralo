@@ -369,9 +369,9 @@ function control(action: ControlAction) {
     // A pause can also land while a tab's resume is still waiting for the bar to go.
     if (capture.state === "recording") capture.pause();
     void apply({ type: "pause", at: now() });
-  } else if (action === "resume" && capture.state === "paused" && snapshot.mode === "tab") {
-    // The page bar shows only while paused, and the tab records whatever it draws. Report the
-    // resume first, so the bar hides, and keep frames again once it has gone.
+  } else if (action === "resume" && capture.state === "paused" && snapshot.mode !== "camera") {
+    // The page bar shows only while paused, and a tab, window or screen records whatever is drawn.
+    // Report the resume first, so the bar hides, and keep frames again once it has gone.
     const at = now() + TAB_RESUME_MS;
     void apply({ type: "resume", at });
     setTimeout(() => {

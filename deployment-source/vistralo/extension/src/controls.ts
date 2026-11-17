@@ -136,11 +136,11 @@ async function mount() {
       meter.hidden = false;
     }
     count.hidden = s.phase !== "countdown";
-    // Recording a tab records everything drawn in it, so the bar and its reveal button show there
-    // only while paused, when no frames are kept. Elsewhere Chrome records a window or the screen,
-    // which shows the controls anyway, or the camera alone, which never shows the page.
-    const barAllowed = s.mode !== "tab" || s.phase === "paused";
-    tabHint.hidden = s.mode !== "tab";
+    // A tab, window or screen records whatever is drawn on it, so the bar and its reveal button
+    // show only while paused, when no frames are kept; the popup, the shortcuts and Chrome's own
+    // "Stop sharing" bar work meanwhile. The camera alone never shows the page.
+    const barAllowed = s.mode === "camera" || s.phase === "paused";
+    tabHint.hidden = s.mode === "camera";
     bar.hidden = hidden || !barAllowed || s.phase === "countdown" || s.phase === "requesting";
     reveal.hidden = !hidden || !barAllowed;
     pause.textContent = s.phase === "paused" ? "▶" : "❚❚";

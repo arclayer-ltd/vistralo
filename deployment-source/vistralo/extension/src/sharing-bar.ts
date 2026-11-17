@@ -78,6 +78,24 @@ export function findSharingBar(pixels: ArrayLike<number>, width: number, top: nu
   return null;
 }
 
+/** The commonest colour in a row of RGBA pixels, as a CSS colour. */
+export function commonColour(row: ArrayLike<number>) {
+  const counts = new Map<number, number>();
+  let best = 0;
+  let bestCount = -1;
+  for (let i = 0; i + 2 < row.length; i += 4) {
+    // Nearby shades count as one, so antialiasing and compression noise do not split the vote.
+    const key = ((row[i] >> 3) << 10) | ((row[i + 1] >> 3) << 5) | (row[i + 2] >> 3);
+    const n = (counts.get(key) ?? 0) + 1;
+    counts.set(key, n);
+    if (n > bestCount) {
+      bestCount = n;
+      best = i;
+    }
+  }
+  return `rgb(${row[best]} ${row[best + 1]} ${row[best + 2]})`;
+}
+
 /** How often the picture is searched again: the bar moves only when it is hidden or shown. */
 const SEARCH_EVERY = 15;
 
@@ -100,6 +118,7 @@ export function withoutSharingBar(source: MediaStreamTrack, display: { width: nu
   const context = canvas.getContext("2d", { alpha: false, willReadFrequently: true })!;
   let frames = 0;
   let bar: BarRect | null = null;
+  let fill = "";
   const transform = new TransformStream<VideoFrame, VideoFrame>({
     transform(frame, controller) {
       try {
@@ -121,9 +140,14 @@ export function withoutSharingBar(source: MediaStreamTrack, display: { width: nu
           const geo = { scale, workBottom: (display.availTop + display.availHeight) * scale };
           const band = searchBand(geo);
           bar = band.rows > 0 ? findSharingBar(context.getImageData(0, band.top, width, band.rows).data, width, band.top, band.rows, geo) : null;
+          if (bar) fill = commonColour(context.getImageData(bar.x, bar.y - 1, bar.width, 1).data);
         }
-        // Stretch the row above the bar down over it, as if the bar were not there.
-        if (bar) context.drawImage(canvas, bar.x, bar.y - 1, bar.width, 1, bar.x, bar.y, bar.width, bar.height);
+        // One flat colour, the commonest just above the bar: stretching that row would drag
+        // every edge it crosses down into streaks.
+        if (bar) {
+          context.fillStyle = fill;
+          context.fillRect(bar.x, bar.y, bar.width, bar.height);
+        }
         controller.enqueue(new VideoFrame(canvas, { timestamp: frame.timestamp, ...(frame.duration ? { duration: frame.duration } : {}) }));
       } finally {
         frame.close();
