@@ -214,7 +214,7 @@ export function CreateForm({
             }
           >
             <Icon name="record" />
-            {requestingCapture ? "Choose a source…" : "Choose what to record"}
+            {!storageChecked ? "Checking for a recording…" : requestingCapture ? "Choose a source…" : "Choose what to record"}
           </button>
         ) : (
           <button

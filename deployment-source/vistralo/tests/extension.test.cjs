@@ -1,0 +1,267 @@
+'use strict';
+// The Chrome extension's state machine and message checks, and the web app's side of the hand-over.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const vm = require('node:vm');
+const { buildSync } = require('esbuild');
+
+function load(file, globals = {}) {
+  const bundled = buildSync({ entryPoints: [path.join(__dirname, '..', file)], bundle: true, write: false, platform: 'browser', format: 'cjs' }).outputFiles[0].text;
+  const module = { exports: {} };
+  vm.runInNewContext(bundled, { module, exports: module.exports, URL, Date, setTimeout, clearTimeout, ...globals });
+  return module.exports;
+}
+
+const session = load('extension/src/session.ts');
+const messages = load('extension/src/messages.ts');
+const { recordedPage } = load('web/app/useExtensionImport.ts', { window: {}, crypto: {}, location: {} });
+
+const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const fresh = (over = {}) =>
+  session.newSession({ id: ID, mode: 'tab', sourceTabId: 7, microphone: true, camera: false, title: 'Shop', url: 'https://shop.example/' }, 1000);
+
+function run(events, start = fresh()) {
+  let s = start;
+  for (const e of events) {
+    const next = session.reduce(s, e);
+    if (next) s = next;
+  }
+  return s;
+}
+
+test('a take counts only recorded time: the count-in and pauses are left out', () => {
+  const s = run([
+    { type: 'countdown', at: 1000, countdownMs: 3000 },
+    { type: 'started', at: 4000 },
+    { type: 'pause', at: 9000 },
+    { type: 'resume', at: 15000 },
+    { type: 'stop', at: 17000 },
+  ]);
+  assert.equal(s.phase, 'stopping');
+  assert.equal(s.elapsedMs, 7000);
+  assert.equal(s.runningSince, null);
+  assert.equal(session.elapsed(s, 99999), 7000, 'a stopped take does not keep counting');
+});
+
+test('the clock is read live while recording and held while paused', () => {
+  const recording = run([{ type: 'started', at: 2000 }]);
+  assert.equal(session.elapsed(recording, 5000), 3000);
+  const paused = run([{ type: 'pause', at: 6000 }], recording);
+  assert.equal(session.elapsed(paused, 60000), 4000);
+});
+
+test('repeated and late controls change nothing', () => {
+  const stopping = run([{ type: 'started', at: 0 }, { type: 'stop', at: 1000 }]);
+  for (const e of [{ type: 'stop', at: 2000 }, { type: 'pause', at: 2000 }, { type: 'resume', at: 2000 }, { type: 'restart', at: 2000, countdownMs: 0 }, { type: 'started', at: 2000 }])
+    assert.equal(session.reduce(stopping, e), null, e.type);
+  const ready = run([{ type: 'finalizing', at: 3000 }, { type: 'ready', at: 3500, bytes: 42 }], stopping);
+  assert.equal(ready.phase, 'ready');
+  assert.equal(session.reduce(ready, { type: 'cancel', at: 4000 }), null, 'a finished recording cannot be cancelled into nothing');
+  assert.equal(session.reduce(ready, { type: 'fail', at: 4000, error: 'x' }), null);
+  assert.equal(session.isActive(ready.phase), false);
+});
+
+test('start over begins a new take at zero with its own count-in', () => {
+  const s = run([{ type: 'started', at: 0 }, { type: 'bytes', at: 500, bytes: 900 }, { type: 'restart', at: 5000, countdownMs: 3000 }]);
+  assert.equal(s.phase, 'countdown');
+  assert.equal(s.take, 2);
+  assert.equal(s.elapsedMs, 0);
+  assert.equal(s.bytes, 0);
+  assert.equal(s.countdownEndsAt, 8000);
+  assert.equal(run([{ type: 'started', at: 8000 }], s).phase, 'recording');
+});
+
+test('cancel works during the count-in and while recording, not while finishing', () => {
+  assert.equal(run([{ type: 'countdown', at: 0, countdownMs: 3000 }, { type: 'cancel', at: 1 }]).phase, 'cancelled');
+  assert.equal(run([{ type: 'started', at: 0 }, { type: 'cancel', at: 1 }]).phase, 'cancelled');
+  const finishing = run([{ type: 'started', at: 0 }, { type: 'stop', at: 1 }, { type: 'finalizing', at: 2 }]);
+  assert.equal(session.reduce(finishing, { type: 'cancel', at: 3 }), null);
+});
+
+test('a failure keeps the time recorded so far and says why', () => {
+  const s = run([{ type: 'started', at: 0 }, { type: 'fail', at: 4000, error: 'Storage is full.' }]);
+  assert.equal(s.phase, 'failed');
+  assert.equal(s.elapsedMs, 4000);
+  assert.equal(s.error, 'Storage is full.');
+});
+
+test('clock text', () => {
+  assert.equal(session.formatClock(0), '0:00');
+  assert.equal(session.formatClock(65_400), '1:05');
+  assert.equal(session.formatClock(3_725_000), '1:02:05');
+});
+
+const options = { mode: 'tab', microphone: 'default', camera: null, bubble: true, bubbleSize: 'medium', systemAudio: true, countdown: true, openWhenDone: true };
+
+test('start options are checked field by field', () => {
+  assert.equal(messages.isStartOptions(options), true);
+  assert.equal(messages.isStartOptions({ ...options, mode: 'desktop' }), false);
+  assert.equal(messages.isStartOptions({ ...options, mode: 'camera' }), false, 'camera only needs a camera');
+  assert.equal(messages.isStartOptions({ ...options, mode: 'camera', camera: 'abc' }), true);
+  assert.equal(messages.isStartOptions({ ...options, microphone: '' }), false);
+  assert.equal(messages.isStartOptions({ ...options, microphone: 'x'.repeat(300) }), false);
+  assert.equal(messages.isStartOptions({ ...options, countdown: 'yes' }), false);
+});
+
+test('service worker requests are validated', () => {
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'start', tabId: 3, options }), true);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'start', tabId: '3', options }), false);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'control', action: 'stop' }), true);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'control', action: 'delete' }), false);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'staged', sessionId: '../x' }), false);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'snapshot', snapshot: fresh() }), true);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'snapshot', snapshot: { ...fresh(), phase: 'hacked' } }), false);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'snapshot', snapshot: { ...fresh(), url: 'x'.repeat(5000) } }), false);
+  assert.equal(messages.isBackgroundRequest({ to: 'engine', type: 'control', action: 'stop' }), false);
+  assert.equal(messages.isBackgroundRequest(null), false);
+});
+
+test('engine requests must carry the session they are for', () => {
+  const begin = { to: 'engine', type: 'begin', sessionId: ID, streamId: 'abc', options, snapshot: fresh() };
+  assert.equal(messages.isEngineRequest(begin), true);
+  assert.equal(messages.isEngineRequest({ ...begin, snapshot: { ...fresh(), id: '11111111-1111-1111-1111-111111111111' } }), false);
+  assert.equal(messages.isEngineRequest({ ...begin, streamId: '' }), false);
+  assert.equal(messages.isEngineRequest({ to: 'engine', type: 'control', sessionId: ID, action: 'pause' }), true);
+  assert.equal(messages.isEngineRequest({ to: 'engine', type: 'control', action: 'pause' }), false);
+  assert.equal(messages.isEngineRequest({ to: 'engine', type: 'camera-ready', sessionId: ID }), true);
+  assert.equal(messages.isEngineRequest({ to: 'engine', type: 'camera-ready' }), false);
+});
+
+test('senders: only this extension counts, and content scripts are told apart from its pages', () => {
+  const own = 'abcdefghijklmnopabcdefghijklmnop';
+  const origin = `chrome-extension://${own}/`;
+  assert.equal(messages.senderKind({ id: own, url: origin + 'popup.html' }, own, origin), 'extension');
+  assert.equal(messages.senderKind({ id: own, url: 'https://shop.example/' }, own, origin), 'content');
+  assert.equal(messages.senderKind({ id: 'someoneelse', url: origin + 'popup.html' }, own, origin), 'foreign');
+});
+
+test('the web app accepts only well-formed requests to the bridge', () => {
+  const nonce = 'a'.repeat(32);
+  assert.equal(messages.isAppMessage({ source: 'vistralo-app', type: 'import', id: ID, nonce }), true);
+  assert.equal(messages.isAppMessage({ source: 'vistralo-app', type: 'import', id: ID, nonce: 'short' }), false);
+  assert.equal(messages.isAppMessage({ source: 'other', type: 'import', id: ID, nonce }), false);
+  assert.equal(messages.isAppMessage({ source: 'vistralo-app', type: 'ping' }), true);
+  assert.equal(messages.isAppMessage({ source: 'vistralo-app', type: 'delete-all' }), false);
+});
+
+test('the recorded page is kept without its query or fragment', () => {
+  assert.equal(recordedPage('https://shop.example/cart?token=secret#step-2'), 'https://shop.example/cart');
+  assert.equal(recordedPage('file:///C:/private.html'), '');
+  assert.equal(recordedPage('not a url'), '');
+  assert.equal(recordedPage(42), '');
+});
+
+test('mute applies only to a take with a microphone, only while it is live, and only once', () => {
+  const live = run([{ type: 'started', at: 0 }]);
+  const muted = session.reduce(live, { type: 'mute', at: 1 });
+  assert.equal(muted.muted, true);
+  assert.equal(session.reduce(muted, { type: 'mute', at: 2 }), null, 'a second mute changes nothing');
+  assert.equal(session.reduce(muted, { type: 'unmute', at: 3 }).muted, false);
+  const silent = run([{ type: 'started', at: 0 }], session.newSession({ id: ID, mode: 'tab', sourceTabId: 1, microphone: false, camera: false, title: '', url: '' }, 0));
+  assert.equal(session.reduce(silent, { type: 'mute', at: 1 }), null, 'nothing to mute without a microphone');
+  const done = run([{ type: 'stop', at: 5 }, { type: 'finalizing', at: 6 }, { type: 'ready', at: 7, bytes: 1 }], muted);
+  assert.equal(session.reduce(done, { type: 'unmute', at: 8 }), null);
+  assert.equal(run([{ type: 'restart', at: 9, countdownMs: 0 }], muted).muted, true, 'start over keeps the microphone muted');
+});
+
+test('bubble sizes and meter messages are checked', () => {
+  assert.equal(messages.isStartOptions({ ...options, bubbleSize: 'huge' }), false);
+  assert.equal(messages.isStartOptions({ ...options, bubbleSize: 'small' }), true);
+  assert.equal(messages.isMeterMessage({ to: 'meter', level: 0.4, muted: false }), true);
+  assert.equal(messages.isMeterMessage({ to: 'meter', level: 4, muted: false }), false);
+  assert.equal(messages.isMeterMessage({ to: 'meter', level: 0.4 }), false);
+  assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'control', action: 'mute' }), true);
+});
+
+test('camera relay messages: only an offer, an answer or an error, with bounded descriptions', () => {
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'v=0', camera: 'default' }), true);
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'v=0', camera: '' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'v=0' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'x'.repeat(20001), camera: 'default' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'answer', sdp: 'v=0' }), true);
+  assert.equal(messages.isCameraRelayMessage({ type: 'answer', sdp: '' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'error' }), true);
+  assert.equal(messages.isCameraRelayMessage({ type: 'stream', track: {} }), false);
+  assert.equal(messages.isCameraRelayMessage(null), false);
+});
+
+const permissions = load('extension/src/permissions.ts');
+// The module runs in its own context, so its arrays are copied before comparing.
+const missing = (...args) => [...permissions.missingPermissions(...args)];
+
+test('a take needs the microphone and camera it uses, allowed for good', () => {
+  const allowed = { microphone: 'granted', camera: 'granted' };
+  const opts = (over) => ({ mode: 'tab', microphone: 'default', camera: null, bubble: true, ...over });
+  assert.deepEqual(missing(opts(), allowed), []);
+  // An "Allow this time" grant that has run out reads as "prompt" again.
+  assert.deepEqual(missing(opts({ mode: 'camera', camera: 'default' }), { microphone: 'granted', camera: 'prompt' }), ['camera']);
+  assert.deepEqual(missing(opts({ camera: 'default' }), { microphone: 'denied', camera: 'prompt' }), ['microphone', 'camera']);
+  // A camera that is chosen but not shown (no bubble, not camera only) is not needed.
+  assert.deepEqual(missing(opts({ camera: 'default', bubble: false }), { microphone: 'granted', camera: 'prompt' }), []);
+  assert.deepEqual(missing(opts({ microphone: null }), { microphone: 'prompt', camera: 'prompt' }), []);
+  // When Chrome cannot say, the start goes ahead and the engine reports what happens.
+  assert.deepEqual(missing(opts({ camera: 'default' }), { microphone: 'unknown', camera: 'unknown' }), []);
+  assert.match(permissions.permissionMessage(['camera'], { microphone: 'granted', camera: 'prompt' }), /camera.*Allow on every visit/);
+  assert.match(permissions.permissionMessage(['microphone', 'camera'], { microphone: 'denied', camera: 'prompt' }), /blocking the microphone and the camera/);
+});
+
+test("Chrome's floating sharing bar is found in a whole-screen frame, and nothing else is", () => {
+  const bar = load('extension/src/sharing-bar.ts');
+  // A 1920 x 1080 frame of a 1536 x 864 screen at 125 %, with a 48-point taskbar.
+  const W = 1920;
+  const geo = { scale: 1.25, workBottom: 1020 };
+  const band = bar.searchBand(geo);
+  const frame = (paint) => {
+    const px = new Uint8ClampedArray(W * band.rows * 4).fill(245);
+    paint((x, y, v) => px.fill(v, ((y - band.top) * W + x) * 4, ((y - band.top) * W + x) * 4 + 3));
+    return px;
+  };
+  // The bar as Chrome draws it at 125 %: a border at y 948, white inside, a bottom border at
+  // 1010-1013 and the page showing between it and the taskbar; 550 pixels wide around the centre.
+  const box = (set, x0, x1, y0, y1, bottom = true) => {
+    for (let x = x0; x <= x1; x++) set(x, y0, 229);
+    for (let y = y0 + 1; y < y1; y++) for (let x = x0; x <= x1; x++) set(x, y, x === x0 || x === x1 ? 229 : 255);
+    if (bottom) for (let y = y1; y < y1 + 4; y++) for (let x = x0; x <= x1; x++) set(x, y, 210);
+  };
+  // Chrome's blue Stop sharing button, in the bar's right half.
+  const button = (px, x0, x1, y0, y1) => {
+    for (let y = y0; y < y1; y++) for (let x = x0; x <= x1; x++) px.set([11, 87, 208, 255], ((y - band.top) * W + x) * 4);
+    return px;
+  };
+  const withBar = button(frame((set) => box(set, 686, 1236, 948, 1010)), 1044, 1176, 960, 1000);
+  const found = bar.findSharingBar(withBar, W, band.top, band.rows, geo);
+  assert.ok(found, 'the bar is found');
+  assert.ok(found.x <= 686 && found.x + found.width > 1236, 'it covers the bar from side to side');
+  assert.ok(found.y < 948 && found.y + found.height >= 1020, 'and from its top edge to the taskbar');
+  assert.ok(found.width < 700, 'but not the whole width of the screen');
+  // On a white page the bar's inside is the page's colour; its borders still give it away, and a
+  // thumbnail running into its top edge does not hide it.
+  const onWhite = (() => {
+    const px = frame((set) => {
+      for (let y = band.top; y < 1020; y++) for (let x = 0; x < W; x++) set(x, y, 255);
+      for (let y = band.top; y < 949; y++) for (let x = 400; x < 840; x++) set(x, y, 40);
+      box(set, 686, 1236, 948, 1010);
+    });
+    return bar.findSharingBar(button(px, 1044, 1176, 960, 1000), W, band.top, band.rows, geo);
+  })();
+  assert.ok(onWhite && onWhite.x <= 686 && onWhite.x + onWhite.width > 1236 && onWhite.width < 700, `found on a white page (${JSON.stringify(onWhite)})`);
+
+  assert.equal(bar.findSharingBar(frame(() => {}), W, band.top, band.rows, geo), null, 'a plain page has no bar');
+  const rule = frame((set) => {
+    for (let x = 0; x < W; x++) set(x, 960, 200);
+  });
+  assert.equal(bar.findSharingBar(rule, W, band.top, band.rows, geo), null, 'a line across the whole screen is not the bar');
+  const offCentre = frame((set) => {
+    for (let x = 100; x <= 650; x++) set(x, 948, 229);
+  });
+  assert.equal(bar.findSharingBar(offCentre, W, band.top, band.rows, geo), null, 'a box at the side is not the bar');
+  // A page's own centred toast or banner near the bottom is not painted out.
+  const snackbar = frame((set) => box(set, 660, 1260, 930, 985));
+  assert.equal(bar.findSharingBar(snackbar, W, band.top, band.rows, geo), null, 'a toast above the taskbar is not the bar');
+  const banner = frame((set) => box(set, 686, 1236, 948, 1020, false));
+  // Everything the bar has but its button: a dark band under a bright edge with a line near the bottom.
+  const noButton = frame((set) => box(set, 686, 1236, 948, 1010));
+  assert.equal(bar.findSharingBar(noButton, W, band.top, band.rows, geo), null, 'without the blue button it is not the bar');
+  assert.equal(bar.findSharingBar(banner, W, band.top, band.rows, geo), null, 'a banner running down to the taskbar is not the bar');
+});
