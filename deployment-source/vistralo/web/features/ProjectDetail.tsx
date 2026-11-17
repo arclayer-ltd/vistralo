@@ -12,6 +12,7 @@ import { ShareFirst } from "./project/ShareFirst";
 import { StalledNotice } from "./project/StalledNotice";
 import { DeletionNote } from "../components/DeletionNote";
 import { stalled } from "../utils";
+import { canAddAiWalkthrough } from "./project/AiWalkthroughDialog";
 import { useProjectDetail } from "./project/useProjectDetail";
 import "./features.css";
 
@@ -25,6 +26,8 @@ interface Props {
   fresh?: boolean;
   onShare?: () => void;
   onFreshDone?: () => void;
+  /** Opens the AI walkthrough offer, with its cost, for this project. */
+  onAddAi?: (project: Project) => void;
 }
 type Tab = "overview" | "editor" | "brief" | "files";
 
@@ -39,6 +42,7 @@ export function ProjectDetail({
   fresh,
   onShare,
   onFreshDone,
+  onAddAi,
 }: Props) {
   const {
     info,
@@ -95,20 +99,23 @@ export function ProjectDetail({
     project.data.walkthroughVideo ||
     project.data.video ||
     original) as string | undefined;
-  const canVoiceover =
-    adapter.mode === "cloud" &&
-    adapter.capabilities.providers &&
-    project.type === "walkthrough" &&
-    project.source !== "web" &&
-    !!sourceFile;
+  // Any saved video can get an AI walkthrough: a recording, an upload, images or a recorded website.
+  // The demo shows the offer too, and says there that it needs a cloud workspace.
+  const canAi =
+    !!onAddAi &&
+    (adapter.mode === "demo" || (adapter.mode === "cloud" && adapter.capabilities.providers)) &&
+    !!(sourceFile || project.video) &&
+    canAddAiWalkthrough(project) &&
+    !awaitingReview(project);
+  const addAi = () => onAddAi?.(project);
   const voiceText =
-    project.type !== "walkthrough" || !original
+    !original
       ? ""
       : project.data.narratedVideo
-        ? "AI voice-over"
+        ? "AI walkthrough"
         : project.data.microphone
           ? "Your voice"
-          : "No voice-over";
+          : "No voice";
   const videoFiles = files.filter((file) => isVideo(file.file));
   const tabs: { id: Tab; name: string }[] = [
     { id: "overview", name: "Overview" },
@@ -188,14 +195,13 @@ export function ProjectDetail({
       {/* A finished walkthrough with nothing left to do needs no notice above its player. */}
       {!active &&
         !project.error &&
-        project.type === "walkthrough" &&
-        (project.status !== "ready" || canVoiceover) && (
+        (project.type === "walkthrough" || canAi) &&
+        (project.status !== "ready" || canAi) && (
         <NextStep
           project={project}
-          adapter={adapter}
-          canVoiceover={canVoiceover}
+          canAi={canAi}
           processing={processing}
-          action={action}
+          onAddAi={addAi}
         />
       )}
       {error && (
@@ -215,9 +221,10 @@ export function ProjectDetail({
           project={project}
           adapter={adapter}
           info={info}
-          canVoiceover={canVoiceover}
+          canAi={canAi}
           processing={processing}
           action={action}
+          onAddAi={addAi}
         />
       )}
       {stall && (

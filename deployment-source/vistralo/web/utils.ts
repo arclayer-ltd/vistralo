@@ -1,4 +1,5 @@
 import type { Project } from "./contracts";
+import { KIND_LABELS, projectKind } from "./features/flow-utils";
 export const sourceText = (p: Project) =>
   p.sourceLabel ||
   (p.url
@@ -6,7 +7,9 @@ export const sourceText = (p: Project) =>
     : p.source === "screen"
       ? "Screen recording"
       : p.source === "upload"
-        ? "Uploaded video"
+        ? projectKind(p) === "images"
+          ? "Images"
+          : "Uploaded video"
         : "Website");
 // Browser recordings are saved as "Screen recording 2026-09-27T13-31-22-370Z".
 const recordingStamp =
@@ -25,8 +28,15 @@ export function projectTitle(p: Pick<Project, "name">, locale?: string) {
     minute: "2-digit",
   }).format(at)}`;
 }
-export const typeText = (p: Project) =>
-  p.type === "brief" ? "Visual brief" : "Walkthrough";
+/** What a project was made from, in the create actions' own words: "Screen recording", "Website", "Video", "Images". */
+export const typeText = (p: Project) => KIND_LABELS[projectKind(p)].one;
+export const kindIcon = (p: Project) => KIND_LABELS[projectKind(p)].icon;
+/**
+ * A drafted AI script waiting for its owner to read and approve it. The library knows this from
+ * the draft's date; an opened project from the draft itself.
+ */
+export const scriptAwaiting = (p: Project) =>
+  !!(p.data?.walkthroughDraft || p.data?.draftedAt) && p.data?.scriptApproved !== true;
 export function durationText(s = 0) {
   s = Math.floor(s);
   return s >= 3600
@@ -58,11 +68,11 @@ export const statusText = (p: Project) =>
     ready: "Ready",
     draft: "Draft",
     queued: "Queued",
-    processing: p.type === "brief" ? "Analyzing site" : "Processing video",
+    processing: p.type === "brief" ? "Recording website" : "Processing video",
     uploading: `Uploading ${p.progress || 0}%`,
     failed:
       p.type === "brief"
-        ? "Couldn't analyze"
+        ? "Couldn't record"
         : p.video
           ? "Needs attention"
           : "Upload failed",
@@ -80,9 +90,9 @@ export const statusHint = (p: Project) => {
   if (p.type === "brief")
     return p.status === "ready"
       ? "The visual brief is ready to read and share."
-      : "Analyze a website to create the brief.";
-  if (p.type === "walkthrough" && p.data?.walkthroughDraft && p.data?.scriptApproved !== true)
-    return "The narration script is ready. Read it below, then approve it to add the voice.";
+      : "Record a website to create the brief.";
+  if (scriptAwaiting(p))
+    return "The AI walkthrough script is ready. Read it below, then approve it to add the voice.";
   if (p.status === "ready")
     return p.data?.narratedVideo
       ? "Narrated with an AI voice. Ready to watch, download and share."
@@ -90,7 +100,7 @@ export const statusHint = (p: Project) => {
   if (!p.video) return "Add a recording to start.";
   return p.data?.microphone
     ? "Saved with your own voice. Trim it or create an MP4 to finish."
-    : "Saved without narration. Add an AI voice-over to finish it.";
+    : "Saved. Add an AI walkthrough whenever you like, or share it as it is.";
 };
 /** How long a project may sit in a working state before it is treated as stalled. */
 const STALL_AFTER_MS = { uploading: 60 * 60_000, queued: 30 * 60_000, processing: 90 * 60_000 } as const;

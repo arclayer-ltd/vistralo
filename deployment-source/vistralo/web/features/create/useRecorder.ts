@@ -34,6 +34,23 @@ interface RecorderOptions {
   onDiscard: () => void;
 }
 
+const VOICE_KEY = "vistralo-record-voice";
+
+/**
+ * Whether a new take records the microphone: what the person chose last time in this browser,
+ * off at first so Record goes straight to the picker without asking for a microphone. The old
+ * talk-through flow, which the Chrome extension may still name, always starts with it on.
+ */
+export function voicePreferred(flow?: CreateFlow): boolean {
+  if (flow === "talk-through") return true;
+  if (flow === "ai-walkthrough" || flow === "section") return false;
+  try {
+    return localStorage.getItem(VOICE_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
 /** Seconds counted before the first frame is recorded. */
 export const COUNTDOWN_SECONDS = 3;
 
@@ -65,12 +82,18 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
     finishTake = useRef<(() => void) | null>(null);
   const recordingStarted = useRef(0),
     elapsedBeforePause = useRef(0);
-  const [microphone, setMicrophone] = useState(
-      flow !== "ai-walkthrough" && flow !== "section",
-    ),
+  const [microphone, setMicrophoneState] = useState(() => voicePreferred(flow)),
     [microphoneLive, setMicrophoneLive] = useState(false),
     [micLevel, setMicLevel] = useState(0),
     [spoken, setSpoken] = useState(false);
+  const setMicrophone = (value: boolean) => {
+    setMicrophoneState(value);
+    try {
+      localStorage.setItem(VOICE_KEY, value ? "on" : "off");
+    } catch {
+      /* Storage unavailable: the choice lasts for this take only. */
+    }
+  };
   // The shared tab's or window's title, when the browser gives one; it names the project.
   const [sharedTitle, setSharedTitle] = useState("");
   const [requestingCapture, setRequestingCapture] = useState(false);
@@ -244,14 +267,17 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
     setRecording("idle");
   }
 
-  /** `automatic` is the ask made as the sheet opens; if the browser refuses or the user cancels it, the form simply stays. */
-  async function chooseSource(automatic = false) {
-    if (requestingCapture) return;
+  /**
+   * `automatic` is the ask made straight from the Record button. Says how it ended: a screen was
+   * chosen, the person cancelled the browser's picker (nothing to show), or it failed with an error.
+   */
+  async function chooseSource(automatic = false): Promise<"chosen" | "cancelled" | "failed"> {
+    if (requestingCapture) return "failed";
     if (!screenSupported) {
       setError(
         "Screen recording is unavailable in this browser. Use Chrome or Edge on a computer, or upload a recording instead.",
       );
-      return;
+      return "failed";
     }
     // Stop saves the project on its own, so a bad address has to be caught before recording starts.
     // The address field is hidden while "Record my voice" is on, and a hidden field is not checked.
@@ -260,7 +286,7 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
         publicWebsite(url);
       } catch (failure) {
         setError(errorMessage(failure));
-        return;
+        return "failed";
       }
     }
     setRequestingCapture(true);
@@ -313,7 +339,7 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
       displayStream.current = selected;
       if (!mounted.current) {
         stopCaptureTracks();
-        return;
+        return "cancelled";
       }
       const source = chosen.captureTrack;
       source?.addEventListener(
@@ -345,13 +371,14 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
         phase.current = "ready";
         void beginRecording(true);
       }
+      return "chosen";
     } catch (failure) {
-      captureFailed(
-        failure,
+      const quiet =
         automatic &&
-          failure instanceof DOMException &&
-          ["NotAllowedError", "InvalidStateError", "AbortError"].includes(failure.name),
-      );
+        failure instanceof DOMException &&
+        ["NotAllowedError", "InvalidStateError", "AbortError"].includes(failure.name);
+      captureFailed(failure, quiet);
+      return quiet ? "cancelled" : "failed";
     } finally {
       if (mounted.current) setRequestingCapture(false);
     }

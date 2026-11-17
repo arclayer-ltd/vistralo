@@ -3,17 +3,17 @@ import type { Project, ProjectSource, WorkspaceAdapter } from "../contracts";
 import { recoverRecording } from "./recording-store";
 import { floatingControlsSupported } from "./capture";
 import { RecordingTray } from "./RecordingControls";
-import type { CreateFlow } from "./create-flows";
+import { startFlow, type CreateFlow } from "./create-flows";
 import { confirmDialog } from "../components/Primitives";
 import { CreateForm } from "./create/CreateForm";
 import { RecordFlow } from "./create/RecordFlow";
 import { RecordSetup } from "./create/RecordSetup";
 import { ScreenshotsFlow } from "./create/ScreenshotsFlow";
 import { SiteUrlField } from "./create/SiteUrlField";
-import { SheetToggle } from "../components/Primitives";
-import { REVIEW_SCRIPT_KEY, reviewScriptPreferred } from "./flow-utils";
+import { formatBytes, publicWebsite, websiteProblem } from "./flow-utils";
 import { UploadVideoFlow } from "./create/UploadVideoFlow";
-import { WebsiteFlow } from "./create/WebsiteFlow";
+import { WebsiteAddress, WebsiteOptions } from "./create/WebsiteFlow";
+import { AiLaterNote, SaveSummary } from "./create/FlowSteps";
 import { useFloatingTray, useRecordingMeters, useRecordingSignal } from "./create/recorder-effects";
 import { useRecorder } from "./create/useRecorder";
 import { useSaveProject } from "./create/useSaveProject";
@@ -28,6 +28,8 @@ interface Props {
   notify: (message: string, error?: boolean) => void;
   /** Opened on a recording handed over by the Chrome extension, and the page it was made on. */
   imported?: { url: string } | null;
+  /** Opened from the Record button: go straight to the browser's picker. */
+  quick?: boolean;
 }
 
 export function CreateProject({
@@ -38,34 +40,38 @@ export function CreateProject({
   onClose,
   notify,
   imported = null,
+  quick = false,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null),
     mounted = useRef(true);
   const [name, setName] = useState(""),
     [url, setUrl] = useState(imported?.url ?? ""),
     [file, setFile] = useState<File | null>(null);
-  const [narrate, setNarrate] = useState(false),
-    [voiceover, setVoiceover] = useState(true);
   const [mobile, setMobile] = useState(true);
-  // Reading the script before it is voiced is the default; the choice is remembered in this browser.
-  const [reviewScript, setReviewScriptState] = useState(reviewScriptPreferred);
-  const setReviewScript = (value: boolean) => {
-    setReviewScriptState(value);
-    try {
-      localStorage.setItem(REVIEW_SCRIPT_KEY, value ? "on" : "off");
-    } catch {
-      /* storage unavailable: the choice lasts for this sheet only */
-    }
-  };
+  // From the Record button the sheet stays out of sight while the browser's own picker is up, so
+  // the two never sit on top of each other. It appears once there is something to show: the area
+  // to set up, the recording tray, a left-over recording, or an error.
+  const [hidden, setHidden] = useState(quick && source === "screen");
+  const startHidden = useRef(hidden);
+  // Each flow is a few steps; Next unlocks once the step has what it asks for.
+  const [step, setStep] = useState(0),
+    [touched, setTouched] = useState(false);
   const [error, setError] = useState(""),
     // Set when the dialog opens onto a recording left over from an earlier visit.
     [leftOver, setLeftOver] = useState<Date | null>(null),
     [localUrl, setLocalUrl] = useState("");
   const [storageChecked, setStorageChecked] = useState(source !== "screen");
-  const screenshots = flow === "narrate-screenshots";
+  const kind = flow
+    ? startFlow(flow)
+    : source === "web"
+      ? "website"
+      : source === "screen"
+        ? "screen"
+        : "video";
+  const screenshots = kind === "images";
   const [shots, setShots] = useState<File[]>([]);
-  const offersVoiceover =
-    adapter.mode === "cloud" && adapter.capabilities.providers;
+  // Whether this workspace can add an AI walkthrough once the project is saved.
+  const offersAi = adapter.mode === "cloud" && adapter.capabilities.providers;
   const rec = useRecorder({ flow, url, mounted, setError, setFile, onDiscard: onClose });
   const {
     recorder,
@@ -100,44 +106,59 @@ export function CreateProject({
     file,
     shots,
     mobile,
-    narrate,
-    voiceover,
-    review: offersVoiceover && reviewScript,
     spoken,
     activeRecording,
-    offersVoiceover,
     mounted,
     setError,
     notify,
     onCreated,
   });
-  const siteUrlField = offersVoiceover && (
-    <>
-      <SiteUrlField
-        url={url}
-        setUrl={setUrl}
-        disabled={busy || !!created.current}
-      />
-      <div className="sheet-group">
-        <SheetToggle
-          label="Review the script before it's voiced"
-          hint={
-            reviewScript
-              ? "Vistralo writes the narration for each screen and stops, so you can read and edit it. The voice is added when you approve it."
-              : "The narration is written and voiced in one go."
-          }
-          checked={reviewScript}
-          onChange={setReviewScript}
-          disabled={busy || !!created.current}
-        />
-      </div>
-    </>
+  const siteUrlField = offersAi && (
+    <SiteUrlField url={url} setUrl={setUrl} disabled={busy || !!created.current} />
   );
+  const canNext =
+    kind === "website"
+      ? step > 0 || (!!url.trim() && !websiteProblem(url))
+      : kind === "images"
+        ? shots.length > 0
+        : !!file;
+  function nextBlocked() {
+    if (kind === "website") setTouched(true);
+    else setError(kind === "images" ? "Choose at least one image to go on." : "Choose a video to go on.");
+    dialog.current
+      ?.querySelector<HTMLInputElement>(".sheet-body input:not([type=checkbox])")
+      ?.focus();
+  }
+  function goNext() {
+    setError("");
+    setStep((current) => current + 1);
+  }
+  function goBack() {
+    setError("");
+    setStep((current) => Math.max(0, current - 1));
+  }
+  // A new step puts the cursor in its first field, or on its heading when it has none.
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    const field = dialog.current?.querySelector<HTMLElement>(
+      ".sheet-body input:not([type=checkbox]):not([type=file]):not(:disabled)",
+    );
+    if (field) field.focus();
+    else {
+      const title = dialog.current?.querySelector<HTMLElement>("#create-title");
+      title?.setAttribute("tabindex", "-1");
+      title?.focus();
+    }
+  }, [step]);
 
   useEffect(() => {
     mounted.current = true;
     const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.showModal();
+    if (!startHidden.current) dialog.current?.showModal();
     dialog.current
       ?.querySelector<HTMLInputElement>("input:not([type=checkbox])")
       ?.focus();
@@ -156,13 +177,22 @@ export function CreateProject({
           return !!saved;
         })
         .catch(() => false)
-        .then((leftOverFound) => {
+        .then(async (leftOverFound) => {
           if (!mounted.current) return;
           setStorageChecked(true);
-          // The click that opened this sheet still counts as the gesture the browser's
-          // picker needs, so ask now instead of making the user press a second button.
-          if (!leftOverFound && screenSupported && adapter.capabilities.upload)
-            void chooseSource(true);
+          // The click on Record still counts as the gesture the browser's picker needs, so ask
+          // now instead of making the user press a second button. Opened from the menu, the first
+          // step's options (your voice, part of the screen) come first.
+          if (quick && !leftOverFound && screenSupported && adapter.capabilities.upload) {
+            const outcome = await chooseSource(true);
+            if (!mounted.current) return;
+            // Cancelling the browser's picker means "never mind": nothing is left behind.
+            if (outcome === "cancelled") {
+              onClose();
+              return;
+            }
+          }
+          setHidden(false);
         });
     return () => {
       mounted.current = false;
@@ -186,6 +216,15 @@ export function CreateProject({
   }, [file, source]);
 
   useRecordingMeters(rec);
+
+  // The sheet held back for the browser's picker comes into view as a tray while recording,
+  // or as the usual modal sheet otherwise.
+  useEffect(() => {
+    const element = dialog.current;
+    if (hidden || !element || element.open) return;
+    if (live) element.show();
+    else element.showModal();
+  }, [hidden]);
 
   // Recording must not block the page, so the dialog becomes a non-modal tray.
   useEffect(() => {
@@ -242,7 +281,7 @@ export function CreateProject({
         progress?.phase === "verifying"
           ? "Wait for the import to finish before closing."
           : source === "web"
-            ? "Wait for website capture to start before closing."
+            ? "Wait for the website recording to start before closing."
             : "Pause the upload before closing.",
       );
       return;
@@ -266,6 +305,13 @@ export function CreateProject({
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
+    // Enter on an early step is Next, and is held back the same way until the step is complete.
+    const last = kind === "screen" || step === (kind === "website" ? 2 : 1);
+    if (!last) {
+      if (canNext) goNext();
+      else nextBlocked();
+      return;
+    }
     void save();
   }
 
@@ -327,42 +373,76 @@ export function CreateProject({
           controller={controller}
           created={created.current}
           error={error}
+          step={step}
+          canNext={canNext}
+          nextBlocked={nextBlocked}
+          onNext={goNext}
+          onBack={goBack}
           submit={submit}
           close={close}
         >
-          {source === "web" ? (
-            <WebsiteFlow
-              url={url}
-              setUrl={setUrl}
-              mobile={mobile}
-              setMobile={setMobile}
-              narrate={narrate}
-              setNarrate={setNarrate}
-              busy={busy}
-              adapter={adapter}
-            />
-          ) : screenshots ? (
-            <ScreenshotsFlow
-              shots={shots}
-              setShots={setShots}
-              busy={busy}
-              adapter={adapter}
-              offersVoiceover={offersVoiceover}
-              siteUrlField={siteUrlField}
-              setError={setError}
-            />
-          ) : source === "upload" ? (
-            <UploadVideoFlow
-              file={file}
-              setFile={setFile}
-              voiceover={voiceover}
-              setVoiceover={setVoiceover}
-              busy={busy}
-              adapter={adapter}
-              offersVoiceover={offersVoiceover}
-              siteUrlField={siteUrlField}
-              setError={setError}
-            />
+          {kind === "website" ? (
+            step === 0 ? (
+              <WebsiteAddress
+                url={url}
+                setUrl={setUrl}
+                touched={touched}
+                setTouched={setTouched}
+                busy={busy}
+              />
+            ) : step === 1 ? (
+              <WebsiteOptions url={url} mobile={mobile} setMobile={setMobile} busy={busy} />
+            ) : (
+              <>
+                <SaveSummary
+                  rows={[
+                    ["Website", siteAddress(url)],
+                    ["Views", mobile ? "Desktop and phone" : "Desktop"],
+                  ]}
+                />
+                <AiLaterNote offered={offersAi} />
+              </>
+            )
+          ) : kind === "images" ? (
+            step === 0 ? (
+              <ScreenshotsFlow
+                shots={shots}
+                setShots={setShots}
+                busy={busy}
+                adapter={adapter}
+                setError={setError}
+              />
+            ) : (
+              <>
+                <SaveSummary
+                  rows={[
+                    ["Images", `${shots.length} ${shots.length === 1 ? "image" : "images"}, in file-name order`],
+                    ["Size", formatBytes(shots.reduce((sum, shot) => sum + shot.size, 0))],
+                  ]}
+                />
+                <AiLaterNote offered={offersAi} />
+              </>
+            )
+          ) : kind === "video" ? (
+            step === 0 ? (
+              <UploadVideoFlow
+                file={file}
+                setFile={setFile}
+                busy={busy}
+                adapter={adapter}
+                setError={setError}
+              />
+            ) : (
+              <>
+                <SaveSummary
+                  rows={[
+                    ["Video", file?.name || ""],
+                    ["Size", file ? formatBytes(file.size) : ""],
+                  ]}
+                />
+                <AiLaterNote offered={offersAi} />
+              </>
+            )
           ) : (
             <RecordFlow
               recorder={rec}
@@ -380,4 +460,14 @@ export function CreateProject({
       )}
     </dialog>
   );
+}
+
+/** "example.com/pricing": the address as people read it. */
+function siteAddress(url: string) {
+  try {
+    const parsed = new URL(publicWebsite(url));
+    return `${parsed.host}${parsed.pathname === "/" ? "" : parsed.pathname}`;
+  } catch {
+    return url;
+  }
 }

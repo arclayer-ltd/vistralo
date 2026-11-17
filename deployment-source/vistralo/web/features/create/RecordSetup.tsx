@@ -5,6 +5,8 @@ import { Icon } from "../../components/Icon";
 import { SheetHeader } from "../../components/Primitives";
 import { DEFAULT_AREA, type ChosenDisplay } from "./recording-media";
 import type { Recorder } from "./useRecorder";
+import { FlowSteps } from "./FlowSteps";
+import { flowSteps } from "../create-flows";
 
 export function RecordSetup({
   recorder,
@@ -58,6 +60,7 @@ export function RecordSetup({
         onClose={() => void close()}
       />
       <div className="sheet-body rec-ready">
+        <FlowSteps steps={flowSteps.screen} current={1} />
         <AreaSelector
           stream={display.stream}
           still={display.surface === "monitor"}

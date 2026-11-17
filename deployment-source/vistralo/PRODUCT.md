@@ -36,7 +36,7 @@ These three lead the product. The recorder, library and share link around them f
 ## Operating Context
 
 - Desktop browser, mostly Chrome. The browser's own "Choose what to share" dialog and its "sharing your screen" bar always appear; the product cannot remove or restyle them. (repo, handoff)
-- Six ways to start: record an AI walkthrough, record a talk-through (your own voice), record a section of the screen, narrate a video, narrate screenshots, analyze a website. (repo: `web/features/create-flows.ts`)
+- Four ways to start, each a few steps with Next locked until the step is complete: Record your screen (your voice and part of the screen are options inside it), Record a website, Upload a video, Add images. Saving starts no paid AI; an AI walkthrough (draft, review, then voice) is added on demand to any saved video. (repo: `web/features/create-flows.ts`; owner: decided 17 November 2026)
 - Work is slow by web standards. A walkthrough is queued, then processed by one worker for minutes, and can fail. People leave and come back, so status has to be readable at a glance and actionable when something is stuck. (repo, handoff)
 - AI narration on Pro and Studio runs on Vistralo's own OpenAI key, within Vistralo's own cap per job. On Free it runs on the customer's own key, with a cap per job the customer sets. A customer on any plan may save their own keys, and then their jobs run on those. Free may get the included keys later; nothing should promise it. (owner: decided 14 October 2026, replacing "the customer's own keys on every plan")
 - Two modes: cloud (Supabase) and a demo at `#demo/` that keeps everything in the browser and needs no account. (repo)

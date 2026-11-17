@@ -45,14 +45,17 @@ const { serve } = require('./static-server.cjs');
       });
       const metrics = await page.evaluate(() => ({
         width:innerWidth,documentWidth:document.documentElement.scrollWidth,h1:document.querySelectorAll('h1').length,
-        firstRowBottom:Math.max(...Array.from(document.querySelectorAll('.project-card')).slice(0,3).map(el=>el.getBoundingClientRect().bottom)),
+        // Projects opens on the welcome overview: its row of recent work is the first row of frames.
+        firstRowBottom:Math.max(...Array.from(document.querySelectorAll('.welcome-frames > li')).slice(0,4).map(el=>el.getBoundingClientRect().bottom)),
+        welcome:!!document.querySelector('.welcome'),
       }));
       await page.screenshot({path:path.join(output,name+'.png'),fullPage:true});
       evidence.push({name,metrics,...scan,errors});
       assert.equal(scan.violations.length,0,JSON.stringify(evidence.at(-1)));
       assert.equal(metrics.h1,1,name+' must have one H1');
       assert.ok(metrics.documentWidth<=width,name+' must not overflow horizontally');
-      if(name==='desktop'||name==='laptop') assert.ok(metrics.firstRowBottom<=height,name+' first row must be fully visible');
+      assert.ok(metrics.welcome,name+' opens on the welcome overview');
+      if(name==='desktop'||name==='laptop') assert.ok(metrics.firstRowBottom<=height,name+' first row of recent work must be fully visible');
       if(name==='tablet-icon-rail') for(const label of [/^Demo workspace/,/^Demo user/]) assert.equal(await page.locator('.rail').getByRole('button',{name:label}).count(),1,label+' must name its icon-rail button');
       // The same library with a selection, and as a list: both must pass axe and fit the width.
       const rescan = async () => page.evaluate(async () => (await axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})));

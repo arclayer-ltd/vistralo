@@ -275,7 +275,7 @@ export function LibraryEmpty({
       </h2>
       <p>
         {first
-          ? "Record your screen, or bring a video, screenshots or a website. Vistralo turns it into a narrated walkthrough or a visual brief you can share."
+          ? "Record your screen or a website, or start from a video or images. Saving starts nothing paid: add an AI walkthrough to any video whenever you like."
           : view === "shared" && !adapter.capabilities.workspaceAccess
             ? "Team invitations are not available yet. Use a read-only share link to share a completed project."
             : query

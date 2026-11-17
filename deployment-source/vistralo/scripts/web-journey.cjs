@@ -27,7 +27,7 @@ async function main() {
     page.setDefaultTimeout(15000);
 
     await page.goto(app.origin + '/#demo/projects');
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     const before = await page.locator('.project-card').count();
     assert.ok(before > 0, 'Demo projects are listed');
     checks.push('demo Projects workspace renders with its sample projects');
@@ -65,7 +65,7 @@ async function main() {
     const record = page.locator('.rail').getByRole('button', {name:'Record', exact:true});
     const create = page.getByRole('button', {name:'New project', exact:true});
     assert.equal(await record.isVisible(), true, 'Record shows without hovering');
-    assert.equal(await record.getAttribute('aria-description'), 'Record an AI walkthrough');
+    assert.equal(await record.getAttribute('aria-description'), 'Record your screen');
     assert.equal(await record.evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(212, 42, 31)', 'Record is the one red control');
     assert.equal(await page.locator('.create-dock').count(), 0, 'Nothing floats over the library');
     const resting = await record.boundingBox();
@@ -73,16 +73,28 @@ async function main() {
     await page.mouse.move(resting.x + 20, resting.y + 10, {steps:5});
     assert.deepEqual(await record.boundingBox(), resting, 'Record does not move as the pointer approaches');
     await create.click();
-    for (const name of [/^Record an AI walkthrough/, /^Record a talk-through/, /^Record a section/, /^Narrate a video/, /^Narrate screenshots/, /^Analyze a website/])
+    for (const name of [/^Record your screen/, /^Record a website/, /^Upload a video/, /^Add images/])
       await page.getByRole('menuitem', {name}).waitFor();
+    assert.equal(await page.getByRole('menuitem').count(), 4, 'Four plain ways to start, and no more');
     await create.click();
     await page.getByRole('menu').waitFor({state:'detached'});
     assert.equal(await create.getAttribute('aria-expanded'), 'false', 'A second click closes the New project menu');
     await page.keyboard.press('n');
-    await page.getByRole('menuitem', {name:/^Narrate a video/}).waitFor();
+    await page.getByRole('menuitem', {name:/^Upload a video/}).waitFor();
     await page.keyboard.press('Escape');
     await page.getByRole('menu').waitFor({state:'detached'});
-    checks.push('Record is always in view and steady, and New project (or N) lists all six ways to start');
+    checks.push('Record is always in view and steady, and New project (or N) lists the four ways to start');
+
+    // The welcome overview: a greeting, the same four ways to start, recent work, what needs attention and a few facts.
+    const welcome = page.locator('.welcome');
+    for (const name of ['Start something new', 'Continue where you left off', 'Needs your attention', 'At a glance'])
+      await welcome.getByRole('heading', {name, level:2}).waitFor();
+    assert.deepEqual(await welcome.locator('.welcome-action strong').allInnerTexts(), ['Record your screen', 'Record a website', 'Upload a video', 'Add images']);
+    assert.equal(await welcome.locator('.welcome-frames > li').count(), 4, 'The four most recently touched projects');
+    await welcome.getByRole('button', {name:'Review script: Video editing workflow', exact:true}).waitFor();
+    await welcome.getByRole('button', {name:'Fix: Pricing page teardown', exact:true}).waitFor();
+    await page.getByRole('heading', {name:'All projects', level:2, exact:true}).waitFor();
+    checks.push('Projects opens on a welcome overview, with the full library under All projects');
 
     // The library is a sheet of frames: no box around a project, media in a black edge, facts in edge print.
     const frame = page.locator('.project-card', {hasText:'Homepage motion study'});
@@ -131,7 +143,8 @@ async function main() {
     await page.waitForFunction(() => document.querySelector('.flow-stage video').readyState >= 1);
     await sheetRegion.getByRole('button', {name:'Play screen 2, at 0:04', exact:true}).click();
     await page.waitForFunction(() => document.querySelector('.flow-stage video').currentTime >= 4);
-    assert.equal(await sheetRegion.locator('li[aria-current="true"] .sheet-number').innerText(), '02', 'The screen being spoken is marked');
+    // The mark follows the player's next time update, so wait for it rather than read it at once.
+    await sheetRegion.locator('li[aria-current="true"] .sheet-number', {hasText:'02'}).waitFor({timeout:5000});
     await page.evaluate(() => document.querySelector('.flow-stage video').pause());
     await page.locator('.flow-actions').getByRole('button', {name:'Share', exact:true}).click();
     const shareSheet = page.getByRole('dialog', {name:'Share Homepage motion study', exact:true});
@@ -236,7 +249,7 @@ async function main() {
     await stalledNotice.getByText(/^No change for 3 days\. The upload stopped/).waitFor();
     await stalledNotice.getByRole('button', {name:'Choose the file again', exact:true}).waitFor();
     await stalledNotice.getByRole('button', {name:'Move to Trash', exact:true}).click();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     // Undo belongs to the message that offered it.
     const moved = page.locator('.toast', {hasText:'Moved to Trash'});
     await moved.waitFor();
@@ -254,16 +267,39 @@ async function main() {
     const fixture = path.join(temp, 'test-upload.mp4');
     await run('ffmpeg', ['-v','error','-f','lavfi','-i','testsrc2=size=640x360:rate=30','-t','2','-c:v','libx264','-pix_fmt','yuv420p',fixture]);
     await page.getByRole('button', {name:'New project', exact:true}).click();
-    await page.getByRole('menuitem', {name:/^Narrate a video/}).click();
-    const dialog = page.getByRole('dialog', {name:'Narrate a video', exact:true});
-    await dialog.getByLabel(/Project name/).fill('Journey upload');
+    await page.getByRole('menuitem', {name:/^Upload a video/}).click();
+    const dialog = page.getByRole('dialog', {name:'Upload a video', exact:true});
+    await dialog.getByRole('list', {name:'Step 1 of 2'}).waitFor();
+    const uploadNext = dialog.getByRole('button', {name:'Next', exact:true});
+    assert.equal(await uploadNext.getAttribute('aria-disabled'), 'true', 'Next is locked until a video is chosen');
+    // A locked Next stays focusable and says what is missing (Playwright treats aria-disabled as disabled).
+    await uploadNext.click({force:true});
+    await dialog.getByText('Choose a video to go on.', {exact:true}).waitFor();
     await dialog.locator('input[type="file"]').setInputFiles(fixture);
-    await dialog.getByRole('button', {name:'Create Walkthrough', exact:true}).click();
+    assert.equal(await uploadNext.getAttribute('aria-disabled'), null, 'Choosing a video unlocks Next');
+    await uploadNext.click();
+    await dialog.getByRole('list', {name:'Step 2 of 2'}).waitFor();
+    await dialog.getByText('Saving doesn\'t start any AI.', {exact:false}).waitFor();
+    await dialog.getByLabel(/Project name/).fill('Journey upload');
+    await dialog.getByRole('button', {name:'Save to Vistralo', exact:true}).click();
     await page.getByRole('heading', {name:'Journey upload', level:1, exact:true}).waitFor({timeout:60000});
-    checks.push('Narrate a video creates a project from an uploaded file');
+    checks.push('Upload a video is two steps, Next stays locked until a valid file is chosen, and saving starts no AI');
+
+    // Any saved video can get an AI walkthrough on demand, with its cost shown first; nothing was queued by saving.
+    await page.getByText('VIDEO', {exact:false}).first().waitFor();
+    await page.getByRole('button', {name:'Add AI walkthrough', exact:true}).click();
+    const ai = page.getByRole('dialog', {name:'Add an AI walkthrough', exact:true});
+    await ai.getByRole('heading', {name:'Cost', exact:true}).waitFor();
+    // A length the browser has measured is priced exactly; before that, the usual range is given.
+    await ai.getByText(/^(About \$\d+\.\d\d for this \d+:\d\d video|Usually between \$0\.10 and \$1\.20)/).waitFor();
+    await ai.getByText(/cloud workspace, which prices each job before it starts/).waitFor();
+    assert.equal(await ai.getByRole('button', {name:'Draft the script', exact:true}).isDisabled(), true, 'The demo never queues paid AI');
+    await ai.getByRole('button', {name:'Not now', exact:true}).click();
+    await ai.waitFor({state:'detached'});
+    checks.push('Add AI walkthrough is offered on a saved video, shows the cost estimate first, and queues nothing in the demo');
 
     await page.getByRole('navigation', {name:'Breadcrumb', exact:true}).getByRole('button', {name:'Projects', exact:true}).click();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     assert.equal(await page.locator('.project-card').count(), before + 1, 'The new project joins the list');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'No desktop horizontal overflow');
     await page.screenshot({path:path.join(evidence, 'dashboard-desktop.png'), fullPage:true});
@@ -289,12 +325,32 @@ async function main() {
     // A bare domain is what people type; it must not be refused for lacking https://.
     await page.setViewportSize({width:1440, height:900});
     await page.getByRole('button', {name:'New project', exact:true}).click();
-    await page.getByRole('menuitem', {name:/^Analyze a website/}).click();
-    const site = page.getByRole('dialog', {name:'Analyze a website', exact:true});
-    await site.getByLabel(/Website URL/).fill('example.com');
-    await site.getByRole('button', {name:'Analyze website', exact:true}).click();
+    await page.getByRole('menuitem', {name:/^Record a website/}).click();
+    const site = page.getByRole('dialog', {name:'Record a website', exact:true});
+    const address = site.getByLabel('Website address', {exact:true});
+    const siteNext = site.getByRole('button', {name:'Next', exact:true});
+    await site.getByRole('list', {name:'Step 1 of 3'}).waitFor();
+    assert.equal(await siteNext.getAttribute('aria-disabled'), 'true', 'Next is locked until an address is typed');
+    await address.fill('localhost:3000');
+    assert.equal(await siteNext.getAttribute('aria-disabled'), 'true', 'A private address keeps Next locked');
+    await address.press('Enter');
+    await site.getByText(/^Enter a public website/).waitFor();
+    assert.equal(await address.getAttribute('aria-invalid'), 'true');
+    await site.getByRole('list', {name:'Step 1 of 3'}).waitFor();
+    await address.fill('example.com');
+    await site.getByText('Ready to record example.com', {exact:true}).waitFor();
+    await siteNext.click();
+    await site.getByRole('list', {name:'Step 2 of 3'}).waitFor();
+    await site.getByRole('switch', {name:/Phone view too/}).waitFor();
+    await siteNext.click();
+    await site.getByRole('list', {name:'Step 3 of 3'}).waitFor();
+    assert.equal(await page.getByRole('heading', {name:'example.com', level:1, exact:true}).count(), 0, 'Moving to the last step saves nothing');
+    await site.getByRole('button', {name:'Back', exact:true}).click();
+    await site.getByRole('list', {name:'Step 2 of 3'}).waitFor();
+    await siteNext.click();
+    await site.getByRole('button', {name:'Record website', exact:true}).click();
     await page.getByRole('heading', {name:'example.com', level:1, exact:true}).waitFor();
-    checks.push('Analyze a website accepts a bare domain');
+    checks.push('Record a website goes address, options, save; Next stays locked until a public http(s) address is typed, and a bare domain is accepted');
 
     // A large workspace: 3,000 generated projects on top of the samples. One page of frames is ever on screen.
     const large = await browser.newPage({viewport:{width:1440, height:900}});
@@ -337,6 +393,9 @@ async function main() {
       window.__pickerCalls = 0;
       navigator.mediaDevices.getDisplayMedia = async () => {
         window.__pickerCalls++;
+        // The browser's picker must never open over Vistralo's own sheet.
+        window.__sheetAtPick = !!document.querySelector('dialog[open]');
+        if (window.__refusePicker) throw new DOMException('Cancelled', 'NotAllowedError');
         const canvas = document.createElement('canvas');
         canvas.width = 640; canvas.height = 360;
         const context = canvas.getContext('2d');
@@ -364,11 +423,21 @@ async function main() {
     const icon = () => take.evaluate(() => document.querySelector('link[rel="icon"]').getAttribute('href'));
     const restingIcon = await icon(), restingTitle = await take.title();
 
+    // Cancelling the browser's picker leaves nothing behind: no sheet, no project.
+    await take.evaluate(() => { window.__refusePicker = true; });
+    await startRecording();
+    await take.waitForFunction(() => window.__pickerCalls === 1);
+    await take.waitForTimeout(300);
+    assert.equal(await take.locator('dialog[open]').count(), 0, 'A cancelled picker leaves no sheet open');
+    assert.equal(await take.evaluate(() => window.__sheetAtPick), false);
+    await take.evaluate(() => { window.__refusePicker = false; window.__pickerCalls = 0; });
+
     // One click reaches the picker; then three, two, one before anything is recorded.
     const clicked = Date.now();
     await startRecording();
     await counting.waitFor();
     assert.equal(await take.evaluate(() => window.__pickerCalls), 1, 'One click on Record asks the browser what to share');
+    assert.equal(await take.evaluate(() => window.__sheetAtPick), false, 'No Vistralo sheet is open behind the browser picker');
     assert.match(await take.title(), /^[123] · Recording starts$/, 'The tab says the count-in is running');
     await stop.waitFor();
     const counted = Date.now() - clicked;
@@ -428,7 +497,7 @@ async function main() {
     assert.equal(await take.evaluate(() => navigator.clipboard.readText()), shared, 'The link is on the clipboard');
     await saved.getByRole('button', {name:'Dismiss', exact:true}).click();
     await saved.waitFor({state:'detached'});
-    checks.push(`one click reaches the picker, recording waits ${counted} ms for the count-in, pause and start over work, and stopping opens the recording with its share link`);
+    checks.push(`one click reaches the picker with no sheet behind it (and cancelling leaves nothing), recording waits ${counted} ms for the count-in, pause and start over work, and stopping opens the recording with its share link`);
 
     // Discard ends the take and saves nothing. Escape during the count-in stops before it starts.
     await take.getByRole('navigation', {name:'Breadcrumb', exact:true}).getByRole('button', {name:'Projects', exact:true}).click();

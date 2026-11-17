@@ -1,13 +1,11 @@
 import { StatusBadge } from "../../components/ProjectCard";
-import { projectTitle, statusHint } from "../../utils";
+import { projectTitle, statusHint, typeText } from "../../utils";
 import React from "react";
-import type { Project, WorkspaceAdapter } from "../../contracts";
+import type { Project } from "../../contracts";
 import { Icon } from "../../components/Icon";
 import { Button } from "../../components/Controls";
 import { DeletionNote } from "../../components/DeletionNote";
 import { formatDuration } from "../flow-utils";
-import type { ProjectAction } from "./useProjectDetail";
-import { reviewScriptPreferred } from "../flow-utils";
 
 export function ProjectHeader({
   project,
@@ -50,12 +48,8 @@ export function ProjectHeader({
           <StatusBadge project={project} />
         </div>
         <p className="flow-caption flow-muted edge">
-          {project.type === "brief" ? "Visual brief" : "Walkthrough"} ·{" "}
-          {project.source === "web"
-            ? project.sourceLabel || project.url || "Website"
-            : project.source === "screen"
-              ? "Screen recording"
-              : "Uploaded recording"}
+          {typeText(project)}
+          {project.source === "web" ? ` · ${project.sourceLabel || project.url || ""}` : ""}
           {project.duration ? ` · ${formatDuration(project.duration)}` : ""}
           {voiceText ? ` · ${voiceText}` : ""}
         </p>
@@ -86,16 +80,15 @@ export function ProjectHeader({
 
 export function NextStep({
   project,
-  adapter,
-  canVoiceover,
+  canAi,
   processing,
-  action,
+  onAddAi,
 }: {
   project: Project;
-  adapter: WorkspaceAdapter;
-  canVoiceover: boolean;
+  /** An AI walkthrough can be added to this project now. */
+  canAi: boolean;
   processing: boolean;
-  action: ProjectAction;
+  onAddAi: () => void;
 }) {
   return (
     <div className="flow-next" role="status">
@@ -104,23 +97,14 @@ export function NextStep({
         size={16}
       />
       <span>{statusHint(project)}</span>
-      {canVoiceover && (
+      {canAi && (
         <button
           className={`button ${project.data.narratedVideo ? "" : "button-primary"}`}
           disabled={processing}
-          onClick={() =>
-            void action(
-              "Adding voice-over",
-              () => adapter.rpc("voiceover", { id: project.id, review: reviewScriptPreferred() }),
-              reviewScriptPreferred()
-                ? "Vistralo is writing the narration. It stops for you to read it before the voice is added."
-                : "Voice-over started. Vistralo is writing the narration from the video.",
-            )
-          }
+          onClick={onAddAi}
         >
-          {project.data.narratedVideo
-            ? "Redo AI voice-over"
-            : "Add AI voice-over"}
+          <Icon name="sparkle" />
+          {project.data.narratedVideo ? "Redo AI walkthrough" : "Add AI walkthrough"}
         </button>
       )}
     </div>

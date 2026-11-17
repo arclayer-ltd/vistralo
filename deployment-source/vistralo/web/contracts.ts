@@ -89,6 +89,8 @@ export interface CreateProjectInput {
   pageTitle?: string;
   /** The uploaded file's own name (data.sourceName). */
   sourceName?: string;
+  /** "images" when the video was made from screenshots (data.origin). */
+  origin?: "images";
 }
 export type ProjectPatch = Partial<
   Pick<

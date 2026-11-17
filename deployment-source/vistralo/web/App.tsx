@@ -8,6 +8,7 @@ import { States } from "./features/States";
 import { CreateProject } from "./features/CreateProject";
 import { flowFor, type CreateFlow } from "./features/create-flows";
 import { ProjectDetail } from "./features/ProjectDetail";
+import { AiWalkthroughDialog } from "./features/project/AiWalkthroughDialog";
 import {
   BillingBanner,
   PricingPage,
@@ -15,10 +16,10 @@ import {
   UpgradeDialog,
   useBilling,
 } from "./billing/Billing";
-import { AI_FLOWS, limitReached } from "./billing/plans";
+import { AI_FLOWS, limitReached, planById } from "./billing/plans";
 import { AppModal } from "./app/AppModal";
 import { DeleteProjectsDialog, EditProjectsDialog, moveToFolder } from "./app/ProjectDialogs";
-import { folderFromRoute, folderList, inFolder } from "./features/folders";
+import { folderFromRoute, folderList, folderRoute, inFolder } from "./features/folders";
 import { confirmDialog } from "./components/Primitives";
 import { counted, projectActions, type Undo } from "./app/projectActions";
 import { Rail } from "./app/Rail";
@@ -59,6 +60,10 @@ export default function App() {
     [recordFlow, setRecordFlow] = useState<CreateFlow>(storedRecordFlow),
     // The page a recording from the Chrome extension was made on, offered as the website URL.
     [imported, setImported] = useState<{ url: string } | null>(null),
+    // The create sheet was opened by the Record button, which goes straight to the picker.
+    [quick, setQuick] = useState(false),
+    // The project an AI walkthrough is being offered for, with its price, before anything is queued.
+    [aiFor, setAiFor] = useState<Project | null>(null),
     // The project saved a moment ago, whose page opens with the share link offered first.
     [fresh, setFresh] = useState<string | null>(null),
     [share, setShare] = useState<Project[] | null>(null),
@@ -181,7 +186,7 @@ export default function App() {
     location.hash = (mode === "demo" ? "demo/" : "") + to;
   }
   // Asked before a create flow opens, so nobody records or uploads and is then refused.
-  function startFlow(next: CreateFlow) {
+  function startFlow(next: CreateFlow, quick = false) {
     const kind = limitReached(billing.state, "projects")
       ? "projects"
       : AI_FLOWS.has(next) && limitReached(billing.state, "jobs")
@@ -192,6 +197,7 @@ export default function App() {
       // The Record button starts whichever way of recording was used last.
       rememberRecordFlow(next);
       setRecordFlow(storedRecordFlow());
+      setQuick(quick);
       setFlow(next);
     }
   }
@@ -226,6 +232,7 @@ export default function App() {
     setDeleting,
     setShare,
     setEdit,
+    addAi: setAiFor,
   });
   if (location.pathname.startsWith("/share/")) return <SharedPage />;
   if (mode === "demo" && path[0] === "share")
@@ -415,6 +422,7 @@ export default function App() {
                 fresh={fresh === current.id}
                 onShare={() => setShare([current])}
                 onFreshDone={() => setFresh(null)}
+                onAddAi={setAiFor}
               />
             ) : loading || opened.pending ? (
               <div className="project-opening" role="status">
@@ -454,6 +462,17 @@ export default function App() {
               loading={loading}
               library={library}
               onShortcuts={() => setModal("shortcuts")}
+              name={profile.name}
+              usage={
+                billing.enabled && billing.state
+                  ? {
+                      plan: planById(billing.state.plan).name,
+                      projects: [billing.state.usage.projects, billing.state.limits.maxProjects],
+                      jobs: [billing.state.usage.jobs, billing.state.limits.monthlyJobs],
+                    }
+                  : null
+              }
+              onFolder={(name) => go(folderRoute(name))}
             />
           )}
         </main>
@@ -476,6 +495,7 @@ export default function App() {
           key={flow}
           source={flowFor(flow).source}
           flow={flow}
+          quick={quick}
           adapter={adapter}
           imported={imported}
           onClose={() => {
@@ -489,6 +509,24 @@ export default function App() {
             setFresh(p.id);
             sync.upsert(p);
             open(p);
+            void refresh();
+          }}
+        />
+      )}
+      {aiFor && (
+        <AiWalkthroughDialog
+          project={aiFor}
+          adapter={adapter}
+          notify={notify}
+          onClose={() => setAiFor(null)}
+          onSettings={() => {
+            setAiFor(null);
+            go("settings/ai");
+          }}
+          onStarted={(p) => {
+            setAiFor(null);
+            sync.upsert(p);
+            if (!(view === "project" && projectId === p.id)) open(p);
             void refresh();
           }}
         />

@@ -40,7 +40,7 @@ async function main() {
     // Flag off: the default build shows nothing about plans, and the pricing route is just Projects.
     let page = await open(off.origin);
     await page.goto(off.origin + '/#demo/pricing');
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await workspace(page).click();
     assert.equal(await page.getByRole('menuitem', {name:'Plan and billing', exact:true}).count(), 0);
     // No plan name either: the demo workspace is labelled as the demo.
@@ -54,7 +54,7 @@ async function main() {
     // Flag on.
     page = await open(on.origin);
     await page.goto(on.origin + '/#demo/projects');
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await workspace(page).locator('small', {hasText:'Free plan'}).waitFor();
     assert.equal(await page.locator('.billing-notice').count(), 0, 'No banner without a subscription');
 
@@ -75,7 +75,7 @@ async function main() {
     };
     const done = async () => {
       await page.evaluate(() => { location.hash = 'demo/projects'; });
-      await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+      await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     };
 
     let settings = await openBilling();
@@ -89,10 +89,10 @@ async function main() {
 
     // At the project limit, starting anything new offers the upgrade instead of the create flow.
     await page.getByRole('button', {name:'New project', exact:true}).click();
-    await page.getByRole('menuitem', {name:/^Narrate a video/}).click();
+    await page.getByRole('menuitem', {name:/^Upload a video/}).click();
     const prompt = page.getByRole('dialog', {name:'The Free plan holds 5 projects', exact:true});
     await prompt.waitFor();
-    assert.equal(await page.getByRole('dialog', {name:'Narrate a video', exact:true}).count(), 0, 'The create flow does not open at the limit');
+    assert.equal(await page.getByRole('dialog', {name:'Upload a video', exact:true}).count(), 0, 'The create flow does not open at the limit');
     await page.screenshot({path:path.join(evidence, 'upgrade-prompt.png')});
     await prompt.getByRole('button', {name:'See plans', exact:true}).click();
     await page.getByRole('heading', {name:'Plans', level:1, exact:true}).waitFor();
@@ -100,7 +100,7 @@ async function main() {
 
     // A 30-day share link is a paid-plan option.
     await page.getByRole('button', {name:'Back to projects', exact:true}).click();
-    await page.getByRole('heading', {name:'Projects', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:/^Good (morning|afternoon|evening)/, level:1}).waitFor();
     await page.locator('.project-card', {hasText:'Homepage motion study'}).getByRole('button', {name:/^Share/}).first().click();
     const share = page.getByRole('dialog', {name:/^Share /});
     assert.equal(await share.locator('option', {hasText:'30 days (paid plans)'}).evaluate(option => option.disabled), true);
@@ -144,8 +144,8 @@ async function main() {
     // The limit is lifted: the create flow opens again.
     await page.getByRole('button', {name:'Back to projects', exact:true}).click();
     await page.getByRole('button', {name:'New project', exact:true}).click();
-    await page.getByRole('menuitem', {name:/^Analyze a website/}).click();
-    const site = page.getByRole('dialog', {name:'Analyze a website', exact:true});
+    await page.getByRole('menuitem', {name:/^Record a website/}).click();
+    const site = page.getByRole('dialog', {name:'Record a website', exact:true});
     await site.waitFor();
     await page.keyboard.press('Escape');
     await site.waitFor({state:'detached'});

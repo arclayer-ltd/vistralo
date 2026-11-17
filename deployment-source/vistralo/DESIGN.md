@@ -205,7 +205,9 @@ The app is a rail and a sheet. The rail is 232px, collapses to 56px of icons bet
 
 Each page starts with one header row: the title and a count at the start, then search across the rest where there is something to search.
 
-Record is not in that row. It sits at the top of the rail, in the same place on every page, with a button beside it that lists the other ways to start. On a phone both are in the top bar. Record goes straight to the browser's screen picker and starts whichever way of recording was used last.
+Record is not in that row. It sits at the top of the rail, in the same place on every page, with a button beside it that lists the other ways to start. On a phone both are in the top bar. Record goes straight to the browser's screen picker, with no Vistralo sheet open behind it; cancelling the picker leaves nothing behind. Whether your voice is recorded is remembered from the last take.
+
+The Projects page opens on a welcome overview (greeting, the four ways to start, recent work, what needs attention, a few facts) with the full library under it.
 
 The library is a grid of frames. Columns are at least 280px wide and as many as fit, with 24px between columns and 32px between rows. The list view is the same frames at 64px wide with their edge print set out in columns. Filters are pill tabs under the header row, with the grid and list switch at the far end.
 

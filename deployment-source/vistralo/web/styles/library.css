@@ -895,3 +895,235 @@
   color: var(--fg-3);
   font-variant-numeric: tabular-nums;
 }
+
+/* The welcome overview at the top of Projects: flat sections on the paper, divided by hairlines.
+   Frames keep their black edge and no box; facts are set in edge print. See DESIGN.md. */
+.welcome {
+  display: grid;
+  gap: var(--space-10);
+  margin-block-end: var(--space-12);
+}
+.welcome-header {
+  display: grid;
+  gap: var(--space-2);
+}
+.welcome-summary {
+  color: var(--fg-2);
+}
+.welcome-section {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+.welcome-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.welcome-count {
+  color: var(--fg-3);
+}
+.welcome-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--card-compact-min-width) * 0.82)), 1fr));
+  gap: var(--space-3);
+}
+.welcome-action {
+  min-block-size: var(--space-16);
+}
+.welcome-action > svg:first-child {
+  flex: none;
+  color: var(--accent-soft);
+}
+.welcome-action strong {
+  font-weight: var(--weight-semibold);
+}
+.welcome-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-8);
+}
+.welcome-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--card-compact-min-width) * 0.5)), 1fr));
+  gap: var(--space-6) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.welcome-frames li {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+.welcome-frame {
+  display: grid;
+  gap: var(--space-2);
+  inline-size: 100%;
+  color: var(--fg-1);
+  border-radius: var(--radius-frame);
+}
+.welcome-frame:hover .thumbnail {
+  outline: var(--ring-width) solid var(--ring-hover);
+  outline-offset: var(--ring-offset);
+}
+.welcome-frame:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--focus-offset);
+}
+.welcome-frame-meta {
+  color: var(--fg-3);
+}
+.welcome-frame-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+.welcome-attention {
+  padding-inline-start: var(--space-8);
+  border-inline-start: var(--border-width) solid var(--divider);
+}
+.welcome-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.welcome-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+}
+.welcome-list li + li {
+  border-block-start: var(--border-width) solid var(--divider);
+}
+.welcome-list li > svg {
+  flex: none;
+  margin-block-start: var(--space-1);
+  color: var(--warning-fg);
+}
+.welcome-list-text {
+  display: grid;
+  flex: 1;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.welcome-list-text strong {
+  overflow: hidden;
+  color: var(--fg-1);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.welcome-clear {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.welcome-clear svg {
+  flex: none;
+  color: var(--success-fg);
+}
+.welcome-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--card-compact-min-width) * 0.82)), 1fr));
+  gap: var(--space-6) var(--space-8);
+  padding-block-start: var(--space-4);
+  border-block-start: var(--border-width) solid var(--divider);
+}
+.welcome-fact {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+.welcome-fact h3 {
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+  color: var(--fg-1);
+}
+.welcome-fact h3 ~ h3 {
+  margin-block-start: var(--space-3);
+}
+.welcome-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: var(--space-4);
+  margin: 0;
+}
+.welcome-stats dt {
+  color: var(--fg-2);
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+}
+.welcome-stats dd {
+  margin: 0;
+  color: var(--fg-1);
+  font-size: var(--font-title);
+  line-height: var(--line-title);
+}
+.welcome-bars,
+.welcome-activity {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.welcome-bars li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-2);
+}
+.welcome-bars li > span:first-of-type,
+.welcome-bars li > .link-button {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.welcome-bars .edge {
+  color: var(--fg-1);
+}
+.welcome-activity li {
+  display: grid;
+  gap: 0;
+  color: var(--fg-2);
+}
+.welcome-activity .edge {
+  color: var(--fg-3);
+}
+.welcome-note {
+  color: var(--fg-3);
+  font-size: var(--font-caption);
+  line-height: var(--line-caption);
+}
+.library-header {
+  padding-block-start: var(--space-8);
+  border-block-start: var(--border-width) solid var(--divider);
+}
+@media (max-width: 1023px) {
+  .welcome-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .welcome-attention {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+}
+@media (max-width: 767px) {
+  .welcome {
+    gap: var(--space-8);
+    margin-block-end: var(--space-8);
+  }
+}

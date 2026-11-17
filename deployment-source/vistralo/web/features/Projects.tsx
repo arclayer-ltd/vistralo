@@ -17,6 +17,7 @@ import {
   ProjectTable,
 } from "./library/LibraryViews";
 import { libraryLabels, useLibrary } from "./library/useLibrary";
+import { Welcome, type Usage } from "./library/Welcome";
 
 /**
  * The library: a header row (title, count, search), a row of filters, then one page of
@@ -39,7 +40,14 @@ export function Projects({
   folder = "",
   onFolderRename,
   onFolderRemove,
+  name = "",
+  usage = null,
+  onFolder,
 }: {
+  /** The signed-in person's name, for the greeting. */
+  name?: string;
+  usage?: Usage | null;
+  onFolder?: (name: string) => void;
   projects: Project[];
   view: string;
   folder?: string;
@@ -62,19 +70,36 @@ export function Projects({
   const waiting = loading && !projects.length;
   const number = (value: number) => value.toLocaleString(locale);
   const filteredOut = visible.length !== scope.length;
+  // The home page opens on a welcome overview; the full library follows it under its own heading.
+  const home = view === "projects";
+  const Heading = home ? "h2" : "h1";
   return (
     <>
-      <header className="page-header">
+      {home && (
+        <Welcome
+          projects={projects}
+          adapter={adapter}
+          locale={locale}
+          name={name}
+          usage={usage}
+          create={create}
+          onOpen={onOpen}
+          onFolder={(next) => onFolder?.(next)}
+        />
+      )}
+      {home && !waiting && !scope.length ? null : (
+      <>
+      <header className={`page-header ${home ? "library-header" : ""}`.trim()}>
         <div className="page-heading">
-          <h1 tabIndex={-1}>
+          <Heading tabIndex={-1} id="library-title">
             {view === "trash"
               ? labels.trash
               : view === "shared"
                 ? labels.shared
                 : view === "folder"
                   ? folder
-                  : labels.projects}
-          </h1>
+                  : "All projects"}
+          </Heading>
           {!waiting && (
             <p className="page-count edge" role="status">
               {filteredOut
@@ -142,6 +167,8 @@ export function Projects({
         />
       )}
       <Pagination lib={lib} locale={locale} />
+      </>
+      )}
     </>
   );
 }

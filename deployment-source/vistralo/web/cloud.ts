@@ -34,6 +34,8 @@ export const SUMMARY_SELECT = ['id','created_at','updated_at',
   'narratedVideo:document->data->>narratedVideo','microphone:document->data->microphone','outputFile:document->data->output->>file',
   // A website's evidence stills (at most a dozen paths); the first, the top of its page, stands for a brief with no poster.
   'analysisEvidence:document->data->analysisEvidence',
+  // What the dashboard needs: a video made from images, and a drafted script waiting to be read.
+  'origin:document->data->>origin','draftedAt:document->data->walkthroughDraft->>draftedAt','scriptApproved:document->data->scriptApproved',
 ].join(',');
 const text = (value:unknown) => typeof value==='string'&&value ? value : undefined;
 const count = (value:unknown) => typeof value==='number'&&Number.isFinite(value) ? value : undefined;
@@ -52,7 +54,8 @@ export function projectSummary(row:any):Project {
     pinned:row.pinned===true,trashed:row.trashed===true,trashedAt:text(row.trashedAt),lastOpened:text(row.lastOpened),folder:text(row.folder),
     thumbnail:text(row.thumbnail)||briefStill(row),video:text(row.video),
     // summary marks a project read for the library; its data holds only what a card needs.
-    data:{summary:true,files:{},thumbnailVariants:Array.isArray(row.thumbnailVariants)?row.thumbnailVariants:undefined,favicon:text(row.favicon),faviconUrl:text(row.faviconUrl),narratedVideo:text(row.narratedVideo),microphone:row.microphone===true,output:text(row.outputFile)?{file:row.outputFile}:null},
+    data:{summary:true,files:{},thumbnailVariants:Array.isArray(row.thumbnailVariants)?row.thumbnailVariants:undefined,favicon:text(row.favicon),faviconUrl:text(row.faviconUrl),narratedVideo:text(row.narratedVideo),microphone:row.microphone===true,output:text(row.outputFile)?{file:row.outputFile}:null,
+      ...(text(row.origin)?{origin:row.origin}:{}),...(text(row.draftedAt)?{draftedAt:row.draftedAt}:{}),scriptApproved:row.scriptApproved===true},
   };
 }
 const storageEndpoint = () => {const u=new URL(VISTRALO_SUPABASE_URL);if(/^[a-z0-9]+\.supabase\.co$/.test(u.hostname))u.hostname=u.hostname.replace('.supabase.co','.storage.supabase.co');return `${u.origin}/storage/v1/upload/resumable`;};
@@ -352,7 +355,8 @@ export class CloudAdapter implements WorkspaceAdapter {
     abortIfNeeded(options.signal);
     const account=await cloudAccount();const row=await this.row(id);if(row.document.trashed)throw Error('Restore this project before uploading.');
     const ext=file.name.split('.').pop()?.toLowerCase();if(!['mp4','webm','mov','mkv','wav','mp3','m4a','srt','vtt'].includes(ext||''))throw Error('Unsupported media format.');
-    if(options.voice==='ai'||(row.document.source==='screen'&&!options.voice))await this.guard('jobs');
+    // Paid narration starts only when it is asked for by name; saving a recording or upload never starts it.
+    if(options.voice==='ai')await this.guard('jobs');
     const digest=await checksum(file,options);
     const resumeKey=`vistralo-cloud-upload:${id}:${digest}:${file.size}`;
     const stored=JSON.parse(localStorage.getItem(resumeKey)||'null') as {target?:string}|null;
@@ -365,7 +369,7 @@ export class CloudAdapter implements WorkspaceAdapter {
       if(['mp4','webm','mov','mkv'].includes(ext||''))await this.poster(id,file).catch(()=>{});
       const saved=await this.row(id);
       if(spoken)return {file:target,sha256:digest,voice:'microphone' as const};
-      const voiceover=options.voice==='ai'||(saved.document.source==='screen'&&options.voice!=='original');
+      const voiceover=options.voice==='ai';
       if(voiceover){
         if(!await this.workerReady())return {file:target,sha256:digest,voice:'offline' as const};
         await this.limited('jobs',await required().from('vistralo_jobs').insert({project_id:id,owner_id:account.user_id,kind:'narrate',payload:{auto:true,...(options.review?{review:true}:{})}}));

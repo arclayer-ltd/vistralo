@@ -2,27 +2,18 @@ import React from "react";
 import type { WorkspaceAdapter } from "../../contracts";
 import { errorMessage, formatBytes, validateVideo } from "../flow-utils";
 import { Icon } from "../../components/Icon";
-import { SheetToggle } from "../../components/Primitives";
 
 export function UploadVideoFlow({
   file,
   setFile,
-  voiceover,
-  setVoiceover,
   busy,
   adapter,
-  offersVoiceover,
-  siteUrlField,
   setError,
 }: {
   file: File | null;
   setFile: (file: File | null) => void;
-  voiceover: boolean;
-  setVoiceover: (voiceover: boolean) => void;
   busy: boolean;
   adapter: WorkspaceAdapter;
-  offersVoiceover: boolean;
-  siteUrlField: React.ReactNode;
   setError: (message: string) => void;
 }) {
   return (
@@ -34,7 +25,7 @@ export function UploadVideoFlow({
           <Icon name={file ? "video" : "upload"} />
         </span>
         <span className="sheet-drop-text">
-          <strong>{file ? file.name : "Choose a recording"}</strong>
+          <strong>{file ? file.name : "Choose a video"}</strong>
           <small>
             {file
               ? `${formatBytes(file.size)} · Choose another file to replace it`
@@ -56,6 +47,7 @@ export function UploadVideoFlow({
               setError(errorMessage(failure));
             }
           }}
+          aria-label="Choose a video"
           aria-describedby="upload-help"
         />
       </label>
@@ -64,22 +56,6 @@ export function UploadVideoFlow({
           ? "Keep this page open while it uploads; if the upload stops, select the same file again to resume."
           : "Interrupted uploads can resume when you select the same file for the same project."}
       </p>
-      {offersVoiceover && (
-        <div className="sheet-group">
-          <SheetToggle
-            label="Add an AI voice-over"
-            hint={
-              voiceover
-                ? "After the upload, Vistralo finds every screen in the video, pauses on each one and explains its design in an AI voice. The narrated video is longer than the recording. It uses your OpenAI key, or Vistralo's on Pro and Studio, within the cost cap."
-                : "The video keeps its own audio. You can add an AI voice-over later from the project."
-            }
-            checked={voiceover}
-            onChange={setVoiceover}
-            disabled={busy}
-          />
-        </div>
-      )}
-      {voiceover && siteUrlField}
       {!adapter.capabilities.upload && (
         <p className="sheet-note">
           <Icon name="info" />
