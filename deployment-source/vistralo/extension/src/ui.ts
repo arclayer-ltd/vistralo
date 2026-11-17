@@ -30,6 +30,13 @@ export async function devices(kind: "audioinput" | "videoinput") {
   }));
 }
 
+/** How many devices of a kind are plugged in. Before Chrome allows them they have no id, so the
+ * lists above leave them out; counting them still tells the person a camera is there to allow. */
+export async function deviceCount(kind: "audioinput" | "videoinput") {
+  const all = await navigator.mediaDevices.enumerateDevices().catch(() => [] as MediaDeviceInfo[]);
+  return all.filter((d) => d.kind === kind && d.deviceId !== "default" && d.deviceId !== "communications").length;
+}
+
 export async function permission(name: "microphone" | "camera") {
   try {
     return (await navigator.permissions.query({ name: name as PermissionName })).state;
