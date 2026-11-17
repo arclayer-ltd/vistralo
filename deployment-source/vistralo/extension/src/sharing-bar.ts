@@ -185,8 +185,22 @@ export function fillGap(context: OffscreenCanvasRenderingContext2D, bar: BarRect
   soft.filter = `blur(${Math.max(1, Math.round((8 * scale) / q))}px)`;
   soft.drawImage(work.canvas, 0, 0);
   soft.filter = "none";
+  // The patch reaches 12 points past each end of the bar; its outer 8 points fade into the real
+  // picture there, so its sides are not hard edges.
+  low.globalCompositeOperation = "copy";
+  low.drawImage(soft.canvas, ix, iy, iw, ih, 0, 0, iw, ih);
+  low.globalCompositeOperation = "destination-in";
+  const feather = Math.min(0.45, (8 * scale) / q / iw);
+  const sides = low.createLinearGradient(0, 0, iw, 0);
+  sides.addColorStop(0, "rgba(0, 0, 0, 0)");
+  sides.addColorStop(feather, "rgba(0, 0, 0, 1)");
+  sides.addColorStop(1 - feather, "rgba(0, 0, 0, 1)");
+  sides.addColorStop(1, "rgba(0, 0, 0, 0)");
+  low.fillStyle = sides;
+  low.fillRect(0, 0, iw, ih);
+  low.globalCompositeOperation = "source-over";
   context.imageSmoothingQuality = "high";
-  context.drawImage(soft.canvas, ix, iy, iw, ih, bar.x, bar.y, bar.width, bar.height);
+  context.drawImage(low.canvas, 0, 0, iw, ih, bar.x, bar.y, bar.width, bar.height);
 }
 
 let scratchCanvases: [OffscreenCanvasRenderingContext2D, OffscreenCanvasRenderingContext2D, OffscreenCanvasRenderingContext2D] | null = null;
