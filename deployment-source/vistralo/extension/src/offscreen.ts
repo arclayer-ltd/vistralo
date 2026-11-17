@@ -9,7 +9,7 @@ import { deleteSession, dropChunks, getSession, putChunk, putSession, type Store
 const COUNTDOWN_MS = 3000;
 const SLICE_MS = 1000;
 const STOP_GRACE_MS = 4000;
-/** In a tab recording, time for the page bar to leave the page before frames are kept again. */
+/** Time for the page bar, or the count-in, to leave a recorded page before frames are kept. */
 const TAB_RESUME_MS = 300;
 const OWN_ORIGIN = chrome.runtime.getURL("");
 
@@ -235,7 +235,11 @@ async function recordTake() {
   if (!media || !snapshot) return;
   const countdown = options?.countdown ? COUNTDOWN_MS : 0;
   if (snapshot.phase === "requesting" && countdown) await apply({ type: "countdown", at: now(), countdownMs: countdown });
+  const counted = !!snapshot.countdownEndsAt;
   if (!(await countIn(snapshot.countdownEndsAt ? Math.max(0, snapshot.countdownEndsAt - now()) : 0))) return;
+  // The count-in is drawn on the page a tab, window or screen recording records. It hides itself
+  // when its time is up; keep no frames until it has gone and the page has been painted without it.
+  if (counted && options?.mode !== "camera") await new Promise((resolve) => setTimeout(resolve, TAB_RESUME_MS));
   // The bubble is part of the recorded page; without this the take opens on an empty circle
   // while the camera warms up.
   if (snapshot.camera && options?.mode !== "camera" && options?.bubble) await bubblePicture(BUBBLE_WAIT_MS);

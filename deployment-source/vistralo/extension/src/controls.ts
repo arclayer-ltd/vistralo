@@ -57,6 +57,7 @@ async function mount() {
   let hidden = false;
   let bubble: HTMLElement | null = null;
   let snapshot: Snapshot | null = null;
+  let countEnd: number | undefined;
   let tick: number | undefined;
 
   const send = (action: ControlAction) => void chrome.runtime.sendMessage({ to: "background", type: "control", action }).catch(() => {});
@@ -135,7 +136,9 @@ async function mount() {
       meter.src = chrome.runtime.getURL("meter.html");
       meter.hidden = false;
     }
-    count.hidden = s.phase !== "countdown";
+    // The count-in goes the moment its time is up, by the clock, without waiting for the engine's
+    // word that recording has begun: the engine keeps no frames until it has been gone a moment.
+    count.hidden = s.phase !== "countdown" || (!!s.countdownEndsAt && Date.now() >= s.countdownEndsAt);
     // A tab, window or screen records whatever is drawn on it, so the bar and its reveal button
     // show only while paused, when no frames are kept; the popup, the shortcuts and Chrome's own
     // "Stop sharing" bar work meanwhile. The camera alone never shows the page.
@@ -156,6 +159,8 @@ async function mount() {
     paint();
     clearInterval(tick);
     if (s && (s.phase === "recording" || s.phase === "countdown")) tick = window.setInterval(paint, 250);
+    clearTimeout(countEnd);
+    if (s?.phase === "countdown" && s.countdownEndsAt) countEnd = window.setTimeout(paint, Math.max(0, s.countdownEndsAt - Date.now()));
     if (s && isActive(s.phase)) void ensureBubble(s);
   }
 
