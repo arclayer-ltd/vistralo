@@ -15,9 +15,11 @@ This writes `extension-dist/dev/` and `extension-dist/vistralo-extension-<versio
 
 | Variable | Effect |
 | --- | --- |
-| `VISTRALO_EXTENSION_TARGET=release` | Minified, no fixed id, for the Chrome Web Store. Must save to app.vistralo.com |
+| `VISTRALO_EXTENSION_TARGET=release` | Minified, no fixed id, for the Chrome Web Store. Must save to app.vistralo.com. The zip is checked before it is kept (see below) |
 | `VISTRALO_EXTENSION_APP_ORIGIN=http://127.0.0.1:4387` | Save to a local build of the app instead (dev only) |
 | `VISTRALO_EXTENSION_DEMO=1` | Save to the app's demo mode (dev only) |
+
+A release build checks its own zip with `releaseProblems` in `scripts/extension-package.cjs` and fails, deleting the zip, if it finds a manifest key, an unexpected permission or host, a source map, a local or demo address, `eval`, a file type a release does not ship, or a file the manifest names but the zip lacks. `tests/extension-release.test.cjs` (part of `npm test`) proves each of those is caught.
 
 Saving to app.vistralo.com needs the app's `#import` route, which ships with this branch; until it is deployed, use Download on the recordings page.
 
@@ -40,6 +42,10 @@ VISTRALO_HEADFUL=1 VISTRALO_TEST_CHROMIUM=... npm run test:extension   # include
 
 Branded Chrome ignores `--load-extension`, so the browser tests need Chrome for Testing or Chromium. Results and recorded files go to `evidence/extension/`.
 
+## Chrome Web Store
+
+The listing, the store images and the owner's submission steps are in `store/`: `store/SUBMIT.md` first, then `store/LISTING.md`. `npm run store:images` remakes the images from the real extension (`store/images/README.md`).
+
 ## Files
 
 | Path | What it is |
@@ -54,4 +60,5 @@ Branded Chrome ignores `--load-extension`, so the browser tests need Chrome for 
 | `src/controls.ts`, `src/camera.ts` | Bar and camera bubble drawn on the recorded page |
 | `src/bridge.ts`, `src/handoff.ts` | Hand-over to the web app |
 | `styles/` | Styles; values come from `web/styles/tokens.css` |
-| `dev-key.json` | Public key fixing the dev build's id. Not a secret |
+| `dev-key.json` | Public key fixing the dev build's id. Not a secret, and never in a release |
+| `store/` | Chrome Web Store listing, images and submission checklist; not part of the package |

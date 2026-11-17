@@ -314,6 +314,8 @@ body[data-phase="recording"] .status-line::before {
 
 /* Camera bubble contents */
 .camera {
+  /* The whole frame: without a height the video keeps the camera's 4:3 or 16:9 shape and the round bubble shows a black band. */
+  height: 100vh;
   margin: var(--space-0);
   overflow: hidden;
   background: var(--media-letterbox);
