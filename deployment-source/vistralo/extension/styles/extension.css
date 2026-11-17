@@ -207,68 +207,105 @@ a {
 .row .button {
   flex: 1;
 }
-/* Waiting for Chrome's "Choose what to share" window */
+/* Waiting for Chrome's "Choose what to share" window, laid out like a Material 3 dialog so it
+   reads as part of the window Chrome has open. */
 .choosing {
   display: grid;
   justify-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-3);
-  border-radius: var(--radius-card);
-  background: var(--accent-wash);
+  gap: var(--space-4);
+  padding-bottom: var(--space-2);
   text-align: center;
 }
-.choosing h2 {
-  margin-top: var(--space-1);
-}
-.choosing .muted {
-  font-size: var(--font-label);
-  line-height: var(--line-label);
-}
-.choosing-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: var(--control-primary);
-  height: var(--control-primary);
+.choosing-progress {
+  justify-self: stretch;
+  height: var(--space-1);
+  overflow: hidden;
   border-radius: var(--radius-pill);
-  background: var(--bg-elevated);
-  color: var(--accent);
+  background: var(--accent-wash);
 }
-.choosing-icon svg {
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-.choosing-icon::after {
-  content: "";
-  position: absolute;
-  inset: var(--space-0);
+.choosing-progress span {
+  display: block;
+  width: 40%;
+  height: 100%;
   border-radius: var(--radius-pill);
-  border: var(--border-width) solid var(--accent);
-  animation: choosing-pulse var(--motion-pulse) var(--motion-ease) infinite;
+  background: var(--accent);
+  animation: choosing-slide var(--motion-pulse) var(--motion-ease) infinite;
 }
-@keyframes choosing-pulse {
+@keyframes choosing-slide {
   from {
-    opacity: 0.6;
-    transform: scale(1);
+    transform: translateX(-100%);
   }
   to {
-    opacity: 0;
-    transform: scale(1.6);
+    transform: translateX(250%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .choosing-icon::after {
+  .choosing-progress span {
+    width: 100%;
     animation: none;
-    opacity: 0;
+    opacity: 0.4;
   }
 }
-.choosing-tip {
-  margin-top: var(--space-1);
-  padding-top: var(--space-2);
-  border-top: var(--border-width) solid var(--divider);
+.choosing-icon {
+  width: var(--space-6);
+  height: var(--space-6);
+  margin-top: var(--space-2);
+  color: var(--accent);
+}
+.choosing h2 {
+  font-family: var(--font-family);
+  font-size: var(--font-section);
+  line-height: var(--line-section);
+  font-weight: var(--weight-regular);
+  font-stretch: normal;
+}
+.choosing-text {
+  max-width: 32ch;
+  margin-top: calc(-1 * var(--space-2));
   color: var(--fg-2);
-  font-size: var(--font-caption);
-  line-height: var(--line-caption);
+}
+.choosing-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  justify-self: stretch;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--accent-wash);
+  color: var(--fg-2);
+  text-align: left;
+  font-size: var(--font-label);
+  line-height: var(--line-label);
+}
+.choosing-tip svg {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  color: var(--accent);
+}
+.choosing-tip strong {
+  color: var(--fg-1);
+  font-weight: var(--weight-medium);
+}
+/* Material dialog actions: a tonal pill, at the end; the popup's links wait until recording. */
+.is-choosing #edit-row {
+  justify-content: flex-end;
+}
+.is-choosing #cancel {
+  flex: none;
+  min-width: calc(var(--control-primary) * 2);
+  min-height: var(--control-primary);
+  padding: var(--space-0) var(--space-6);
+  border-color: transparent;
+  border-radius: var(--radius-pill);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+.is-choosing #cancel:hover {
+  background: var(--selected-fill);
+}
+body.is-choosing footer {
+  display: none;
 }
 .session-clock {
   font-family: var(--font-mono);

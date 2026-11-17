@@ -88,6 +88,7 @@ function control(action: ControlAction) {
 function render() {
   const s = snapshot;
   const live = !!s && isActive(s.phase);
+  document.body.classList.toggle("is-choosing", live && s.phase === "requesting" && s.mode === "screen");
   show("setup", !live);
   show("session", live);
   show("last", !!s && s.phase === "ready");
