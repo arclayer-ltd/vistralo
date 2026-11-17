@@ -98,6 +98,8 @@
   --icon-small: 14px;
   --icon-navigation: 16px;
   --icon-size: 20px;
+  /* The site icon on a frame that has no picture yet. */
+  --icon-frame: 24px;
   --brand-size: 24px;
   --toolbar-height: 48px;
   --meter-height: 6px;

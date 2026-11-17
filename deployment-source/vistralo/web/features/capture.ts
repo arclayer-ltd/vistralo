@@ -1,3 +1,4 @@
+import { pageTitle } from "../../src/project-labels.cjs";
 /** A part of the captured surface, as fractions of its width and height. */
 export interface CaptureArea {
   x: number;
@@ -260,6 +261,25 @@ async function viewportAfterShare(before: number) {
 }
 
 /**
+ * What the browser says was shared: a window's or tab's title where it gives one (Firefox and
+ * Safari name windows; Chrome names its surfaces by id), else the site a captured page chose to
+ * reveal through its capture handle. Free to read; tidied into a name by pageTitle().
+ */
+export function captureTitle(track?: MediaStreamTrack): string {
+  if (!track) return "";
+  try {
+    const handle = (track as MediaStreamTrack & {
+      getCaptureHandle?: () => { origin?: string } | null;
+    }).getCaptureHandle?.();
+    const label = pageTitle(track.label);
+    if (label) return label;
+    return handle?.origin ? pageTitle(handle.origin) : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Asks for a capture with the picker opened on Chrome Tab where supported.
  * `focusTab` switches to a shared tab right away; off keeps Vistralo in front.
  */
@@ -334,6 +354,7 @@ export async function chooseDisplay(withTabAudio: boolean, focusTab = true) {
   return {
     stream,
     captureTrack: track ?? null,
+    title: captureTitle(track),
     release,
     surface,
     width: frameWidth,
