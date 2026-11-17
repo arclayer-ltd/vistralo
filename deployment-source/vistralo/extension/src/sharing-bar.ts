@@ -116,8 +116,9 @@ export function commonColour(row: ArrayLike<number>) {
   return `rgb(${row[best]} ${row[best + 1]} ${row[best + 2]})`;
 }
 
-/** How often the picture is searched again: the bar moves only when it is hidden or shown. */
-const SEARCH_EVERY = 15;
+/** How often the picture is searched again, in milliseconds: the bar moves only when it is hidden
+ * or shown. Timed, not counted in frames: a still screen sends very few frames. */
+const SEARCH_EVERY_MS = 500;
 
 /**
  * A copy of a screen track with the sharing bar painted out. Only for a whole screen that is
@@ -136,9 +137,8 @@ export function withoutSharingBar(source: MediaStreamTrack, display: { width: nu
   const abort = new AbortController();
   const canvas = new OffscreenCanvas(2, 2);
   const context = canvas.getContext("2d", { alpha: false, willReadFrequently: true })!;
-  let frames = 0;
+  let searched = -Infinity;
   let bar: BarRect | null = null;
-  let fill = "";
   const transform = new TransformStream<VideoFrame, VideoFrame>({
     transform(frame, controller) {
       try {
@@ -153,19 +153,20 @@ export function withoutSharingBar(source: MediaStreamTrack, display: { width: nu
         if (canvas.width !== width || canvas.height !== height) {
           canvas.width = width;
           canvas.height = height;
-          frames = 0;
+          searched = -Infinity;
         }
         context.drawImage(frame, 0, 0);
-        if (frames++ % SEARCH_EVERY === 0) {
+        const now = performance.now();
+        if (now - searched >= SEARCH_EVERY_MS) {
+          searched = now;
           const geo = { scale, workBottom: (display.availTop + display.availHeight) * scale };
           const band = searchBand(geo);
           bar = band.rows > 0 ? findSharingBar(context.getImageData(0, band.top, width, band.rows).data, width, band.top, band.rows, geo) : null;
-          if (bar) fill = commonColour(context.getImageData(bar.x, bar.y - 1, bar.width, 1).data);
         }
-        // One flat colour, the commonest just above the bar: stretching that row would drag
-        // every edge it crosses down into streaks.
+        // One flat colour, the commonest just above the bar in this very frame: stretching that row
+        // would drag every edge it crosses down into streaks.
         if (bar) {
-          context.fillStyle = fill;
+          context.fillStyle = commonColour(context.getImageData(bar.x, bar.y - 1, bar.width, 1).data);
           context.fillRect(bar.x, bar.y, bar.width, bar.height);
         }
         controller.enqueue(new VideoFrame(canvas, { timestamp: frame.timestamp, ...(frame.duration ? { duration: frame.duration } : {}) }));
