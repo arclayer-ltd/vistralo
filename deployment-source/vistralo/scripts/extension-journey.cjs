@@ -238,7 +238,9 @@ async function main() {
   const site = await new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       res.setHeader('content-type', 'text/html');
-      res.end(fixture(req.url === '/two' ? 'Fixture shop, page two' : 'Fixture shop'));
+      // A site that forbids the camera in every frame on its pages, as app.vistralo.com does.
+      if (req.url === '/no-camera') res.setHeader('Permissions-Policy', 'camera=()');
+      res.end(fixture(req.url === '/two' ? 'Fixture shop, page two' : req.url === '/no-camera' ? 'Fixture shop without the camera' : 'Fixture shop'));
     });
     server.listen(0, '127.0.0.1', () => resolve({ origin: `http://127.0.0.1:${server.address().port}`, close: () => server.close() }));
   });
@@ -460,6 +462,30 @@ async function main() {
         await t.send({ to: 'background', type: 'control', action: 'cancel' });
         await t.until((x) => x.phase === 'cancelled', 10000, 'cancelled');
         assert.ok(frames.some((u) => u.startsWith(`chrome-extension://${extensionId}/camera.html`)), `the bubble frame is on the page (${frames.join(', ')})`);
+      });
+
+      await step('camera bubble on a page that forbids the camera: the engine streams it in', async () => {
+        await t.idle();
+        await t.page.goto(site.origin + '/no-camera');
+        const tabId = await t.tabOf(t.page);
+        const options = t.options({ mode: 'screen', camera: 'default', bubble: true, countdown: false });
+        await t.control.evaluate((o) => chrome.storage.local.set({ options: o }), options);
+        assert.deepEqual(await t.send({ to: 'background', type: 'start', tabId, options }), { ok: true });
+        await t.until((x) => x && x.phase === 'recording', 20000, 'recording');
+        let bubbleFrame;
+        for (let i = 0; i < 50 && !bubbleFrame; i++) {
+          bubbleFrame = t.page.frames().find((f) => f.url().includes('/camera.html'));
+          if (!bubbleFrame) await wait(200);
+        }
+        assert.ok(bubbleFrame, 'the bubble frame is on the page');
+        assert.equal(await bubbleFrame.evaluate(() => document.featurePolicy.allowsFeature('camera')), false, 'the page really forbids the camera here');
+        await bubbleFrame.waitForFunction(() => document.querySelector('video').videoWidth > 0, null, { timeout: 15000 });
+        assert.equal(await bubbleFrame.evaluate(() => document.body.classList.contains('is-off')), false, 'the bubble shows the camera');
+        await wait(1500);
+        await t.page.screenshot({ path: path.join(evidence, 'camera-bubble-forbidden-page.png') });
+        await t.send({ to: 'background', type: 'control', action: 'cancel' });
+        await t.until((x) => x.phase === 'cancelled', 10000, 'cancelled');
+        await t.page.goto(site.origin + '/');
       });
 
       await step('popup and setup page render', async () => {

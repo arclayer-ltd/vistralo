@@ -1,7 +1,7 @@
 // The recording engine, in Chrome's offscreen document. It owns every stream and the
 // MediaRecorder and writes each second of video to IndexedDB as it arrives. Offscreen documents
 // may use only chrome.runtime, so the session snapshot is sent to the service worker to store.
-import { isEngineRequest, senderKind, type ControlAction, type EngineRequest, type StartOptions } from "./messages";
+import { CAMERA_PORT, iceGathered, isCameraRelayMessage, isEngineRequest, senderKind, type ControlAction, type EngineRequest, type StartOptions } from "./messages";
 import { elapsed, reduce, type SessionEvent, type Snapshot } from "./session";
 import { deleteSession, dropChunks, getSession, putChunk, putSession, type StoredSession } from "./store";
 
@@ -424,6 +424,54 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   if (message.type === "begin") void begin(message);
   else if (snapshot && message.sessionId === snapshot.id) control(message.action);
   return false;
+});
+
+// The camera bubble on a page that forbids the camera in its frames asks for the camera here
+// (see CAMERA_PORT). Only this extension's own camera page may ask, and only while a take with
+// the camera is under way. The camera is stopped as soon as the bubble's frame goes away.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== CAMERA_PORT) return;
+  const sender = port.sender ?? {};
+  if (senderKind(sender, chrome.runtime.id, OWN_ORIGIN) !== "extension" || !sender.url?.startsWith(OWN_ORIGIN + "camera.html") || !snapshot?.camera) {
+    port.disconnect();
+    return;
+  }
+  let camera: MediaStream | null = null;
+  let pc: RTCPeerConnection | null = null;
+  let closed = false;
+  const close = () => {
+    closed = true;
+    camera?.getTracks().forEach((t) => t.stop());
+    pc?.close();
+    camera = null;
+    pc = null;
+  };
+  port.onDisconnect.addListener(close);
+  port.onMessage.addListener((message: unknown) => {
+    if (!isCameraRelayMessage(message) || message.type !== "offer" || pc || closed) return;
+    void (async () => {
+      try {
+        camera = await navigator.mediaDevices.getUserMedia({
+          video: { ...exactDevice(message.camera), width: { ideal: 640 }, height: { ideal: 640 } },
+          audio: false,
+        });
+        if (closed) return close();
+        pc = new RTCPeerConnection();
+        for (const track of camera.getVideoTracks()) pc.addTrack(track, camera);
+        await pc.setRemoteDescription({ type: "offer", sdp: message.sdp });
+        await pc.setLocalDescription(await pc.createAnswer());
+        await iceGathered(pc);
+        if (!closed) port.postMessage({ type: "answer", sdp: pc.localDescription!.sdp });
+      } catch {
+        close();
+        try {
+          port.postMessage({ type: "error" });
+        } catch {
+          /* The bubble is gone already. */
+        }
+      }
+    })();
+  });
 });
 
 // The service worker reads this to tell a live engine from one that lost its session.

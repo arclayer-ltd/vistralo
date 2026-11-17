@@ -155,6 +155,53 @@ export function senderKind(sender: { id?: string; url?: string }, ownId: string,
   return "content" as const;
 }
 
+/**
+ * The camera bubble and the engine, over a runtime port with this name. A site can forbid the
+ * camera in every frame on its pages (Permissions-Policy: camera=()), the bubble's frame included;
+ * the bubble then asks the engine, which no site's policy reaches, to open the camera and stream
+ * it to the bubble over a WebRTC connection inside this computer. The port carries the offer and
+ * the answer, nothing else.
+ */
+export const CAMERA_PORT = "vistralo-camera";
+
+export type CameraRelayMessage =
+  | { type: "offer"; sdp: string; camera: string }
+  | { type: "answer"; sdp: string }
+  | { type: "error" };
+
+const SDP_MAX = 20000;
+
+export function isCameraRelayMessage(v: unknown): v is CameraRelayMessage {
+  if (!isObject(v)) return false;
+  switch (v.type) {
+    case "offer":
+      return typeof v.sdp === "string" && v.sdp.length > 0 && v.sdp.length <= SDP_MAX && typeof v.camera === "string" && v.camera.length > 0 && v.camera.length <= 256;
+    case "answer":
+      return typeof v.sdp === "string" && v.sdp.length > 0 && v.sdp.length <= SDP_MAX;
+    case "error":
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Waits until a connection has gathered its own addresses, so one offer and one answer suffice. */
+export function iceGathered(pc: RTCPeerConnection, ms = 3000) {
+  if (pc.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      pc.removeEventListener("icegatheringstatechange", check);
+      resolve();
+    };
+    const check = () => {
+      if (pc.iceGatheringState === "complete") done();
+    };
+    const timer = setTimeout(done, ms);
+    pc.addEventListener("icegatheringstatechange", check);
+  });
+}
+
 // The web app and the extension speak through window.postMessage in the app's own tab.
 export const APP_SOURCE = "vistralo-app";
 export const EXTENSION_SOURCE = "vistralo-extension";
