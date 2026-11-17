@@ -142,7 +142,24 @@ async function killBrowser(profile) {
   throw new Error('Chrome did not exit after being killed.');
 }
 
+/** Allows the camera and microphone for the dev extension in a profile's saved settings. */
+function allowMedia(profile) {
+  const file = path.join(profile, 'Default', 'Preferences');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const prefs = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+  const exceptions = (((prefs.profile ??= {}).content_settings ??= {}).exceptions ??= {});
+  for (const kind of ['media_stream_camera', 'media_stream_mic']) {
+    exceptions[kind] = { ...exceptions[kind], [`chrome-extension://${extensionId}/,*`]: { setting: 1 } };
+  }
+  fs.writeFileSync(file, JSON.stringify(prefs));
+}
+
 async function browser(fakeDevices, site, run, { profile = fs.mkdtempSync(path.join(os.tmpdir(), 'vistralo-ext-')), keepProfile = false } = {}) {
+  // Chrome's fake permission prompt grants getUserMedia without recording the grant, so the
+  // extension's own check (permissions.query) would still read "prompt". Record the grant in the
+  // profile, as a person allowing the prompt would. (Granting it through the DevTools protocol
+  // fails: Chrome treats the extension's origin as opaque there.)
+  if (fakeDevices) allowMedia(profile);
   const context = await chromium.launchPersistentContext(profile, {
     executablePath: process.env.VISTRALO_TEST_CHROMIUM,
     headless: process.env.VISTRALO_HEADFUL !== '1',
@@ -158,9 +175,6 @@ async function browser(fakeDevices, site, run, { profile = fs.mkdtempSync(path.j
       '--autoplay-policy=no-user-gesture-required',
     ],
   });
-  // Chrome's fake permission prompt grants getUserMedia without recording the grant, so the
-  // extension's own check (permissions.query) would still read "prompt". Grant it as a person would.
-  if (fakeDevices) await context.grantPermissions(['camera', 'microphone'], { origin: `chrome-extension://${extensionId}` });
   try {
     // A profile started again may not report its already-registered worker; opening a page wakes it.
     const worker = context.serviceWorkers()[0] || (await context.waitForEvent('serviceworker', { timeout: 15000 }).catch(() => null));
