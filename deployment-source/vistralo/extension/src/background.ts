@@ -9,6 +9,7 @@ import {
   type EngineRequest,
   type StartOptions,
 } from "./messages";
+import { missingPermissions, permissionMessage, readAccess } from "./permissions";
 import { isActive, newSession, type Snapshot } from "./session";
 import { currentSnapshot, importUrl, onSnapshot, savedOptions, writeSnapshot } from "./settings";
 import { deleteSession, getSession, listSessions, putSession } from "./store";
@@ -111,6 +112,14 @@ async function start(options: StartOptions, tabId: number | null): Promise<{ ok:
     );
     // The tab's stream id is asked for first, while the click that started this still counts.
     const streamId = options.mode === "tab" ? await chrome.tabCapture.getMediaStreamId({ targetTabId: source!.id! }) : null;
+    // A microphone or camera Chrome has not allowed (or allowed only "this time", which has run
+    // out) cannot be asked for from here: send the person to the setup page, which can ask.
+    const access = await readAccess();
+    const missing = missingPermissions(options, access);
+    if (missing.length) {
+      void chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+      return { error: permissionMessage(missing, access) };
+    }
     await writeSnapshot(s);
     await openEngine();
     await toEngine({ to: "engine", type: "begin", sessionId: s.id, streamId, options, snapshot: s });

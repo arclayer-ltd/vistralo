@@ -141,6 +141,9 @@ async function browser(fakeDevices, site, run, { profile = fs.mkdtempSync(path.j
       '--autoplay-policy=no-user-gesture-required',
     ],
   });
+  // Chrome's fake permission prompt grants getUserMedia without recording the grant, so the
+  // extension's own check (permissions.query) would still read "prompt". Grant it as a person would.
+  if (fakeDevices) await context.grantPermissions(['camera', 'microphone'], { origin: `chrome-extension://${extensionId}` });
   try {
     // A profile started again may not report its already-registered worker; opening a page wakes it.
     const worker = context.serviceWorkers()[0] || (await context.waitForEvent('serviceworker', { timeout: 15000 }).catch(() => null));
@@ -246,6 +249,18 @@ async function main() {
   try {
     await browser(false, site, async (t) => {
       let first = null;
+      await step('a microphone Chrome has not allowed: nothing starts, and the setup page opens', async () => {
+        // The setup page also opens on install; close it so the one asserted below is new.
+        for (const p of t.context.pages()) if (p.url().endsWith('/welcome.html')) await p.close();
+        const tabId = await t.tabOf(t.page);
+        const result = await t.send({ to: 'background', type: 'start', tabId, options: t.options({ microphone: 'default' }) });
+        assert.match(result.error ?? '', /needs your permission to use the microphone.*Allow on every visit/);
+        assert.equal(await t.snapshot(), null, 'no session was started');
+        const setup = await findPage(t.context, `chrome-extension://${extensionId}/welcome.html`);
+        assert.ok(setup, 'the setup page opened');
+        await setup.close();
+        await t.page.bringToFront();
+      });
       await step('tab: count-in, tab sound, pause, resume, survive navigation, stop; the file plays', async () => {
         const tabId = await t.tabOf(t.page);
         assert.deepEqual(await t.send({ to: 'background', type: 'start', tabId, options: t.options() }), { ok: true });

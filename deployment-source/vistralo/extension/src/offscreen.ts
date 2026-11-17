@@ -100,7 +100,7 @@ async function acquire(request: Extract<EngineRequest, { type: "begin" }>) {
       video.getTracks().forEach((t) => t.stop());
       throw new Error(
         failure instanceof DOMException && failure.name === "NotAllowedError"
-          ? "Vistralo is not allowed to use the microphone. Open Vistralo's setup page from the popup to allow it, or record without the microphone."
+          ? "Vistralo is not allowed to use the microphone. Open Vistralo's setup page from the popup, allow it and choose \"Allow on every visit\", or record without the microphone."
           : "The microphone could not be started. Choose another microphone, or record without it.",
       );
     }
@@ -388,7 +388,9 @@ async function begin(request: Extract<EngineRequest, { type: "begin" }>) {
         type: "fail",
         at: now(),
         error: declined
-          ? "Chrome did not allow the recording. Allow Vistralo to use the camera, or choose what to share again."
+          ? request.options.mode === "camera"
+            ? "Vistralo is not allowed to use the camera. Open Vistralo's setup page from the popup, allow the camera and choose \"Allow on every visit\"."
+            : "Chrome did not allow recording this tab. Click Vistralo in the toolbar on the tab you want to record, then start again."
           : failure instanceof Error
             ? failure.message
             : "The recording could not start.",

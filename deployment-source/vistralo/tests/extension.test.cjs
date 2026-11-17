@@ -171,3 +171,23 @@ test('bubble sizes and meter messages are checked', () => {
   assert.equal(messages.isMeterMessage({ to: 'meter', level: 0.4 }), false);
   assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'control', action: 'mute' }), true);
 });
+
+const permissions = load('extension/src/permissions.ts');
+// The module runs in its own context, so its arrays are copied before comparing.
+const missing = (...args) => [...permissions.missingPermissions(...args)];
+
+test('a take needs the microphone and camera it uses, allowed for good', () => {
+  const allowed = { microphone: 'granted', camera: 'granted' };
+  const opts = (over) => ({ mode: 'tab', microphone: 'default', camera: null, bubble: true, ...over });
+  assert.deepEqual(missing(opts(), allowed), []);
+  // An "Allow this time" grant that has run out reads as "prompt" again.
+  assert.deepEqual(missing(opts({ mode: 'camera', camera: 'default' }), { microphone: 'granted', camera: 'prompt' }), ['camera']);
+  assert.deepEqual(missing(opts({ camera: 'default' }), { microphone: 'denied', camera: 'prompt' }), ['microphone', 'camera']);
+  // A camera that is chosen but not shown (no bubble, not camera only) is not needed.
+  assert.deepEqual(missing(opts({ camera: 'default', bubble: false }), { microphone: 'granted', camera: 'prompt' }), []);
+  assert.deepEqual(missing(opts({ microphone: null }), { microphone: 'prompt', camera: 'prompt' }), []);
+  // When Chrome cannot say, the start goes ahead and the engine reports what happens.
+  assert.deepEqual(missing(opts({ camera: 'default' }), { microphone: 'unknown', camera: 'unknown' }), []);
+  assert.match(permissions.permissionMessage(['camera'], { microphone: 'granted', camera: 'prompt' }), /camera.*Allow on every visit/);
+  assert.match(permissions.permissionMessage(['microphone', 'camera'], { microphone: 'denied', camera: 'prompt' }), /blocking the microphone and the camera/);
+});
