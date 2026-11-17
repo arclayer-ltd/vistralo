@@ -42,7 +42,7 @@ Permissions
 Vistralo only records after you click it in the toolbar and press Start. It asks to draw its controls on every site only if you tick that option; otherwise they stay on the page you started on.
 
 Privacy policy: {{PRIVACY_POLICY_URL}}
-Help: contact@vistralo.com
+Help: hello@arclayer.co
 ```
 
 **Category:** Productivity → Tools. (Workflow & Planning is the other reasonable choice; Tools is where screen recorders are listed.)
@@ -65,7 +65,7 @@ Help: contact@vistralo.com
 | --- | --- |
 | Official URL | https://vistralo.com (only selectable after the owner verifies the domain in Google Search Console) |
 | Homepage URL | https://vistralo.com |
-| Support URL | `{{SUPPORT_URL}}` (a page, or `mailto:contact@vistralo.com` if the dashboard accepts it; otherwise leave blank and keep the email in the description) |
+| Support URL | `mailto:hello@arclayer.co`. If the dashboard refuses a mailto link, leave it blank; the email is in the description. |
 | Mature content | No |
 
 ## Privacy practices tab
@@ -120,7 +120,7 @@ A screen recording can show anything the user puts on screen. The extension does
 
 | Field | Recommendation |
 | --- | --- |
-| Visibility | `{{CWS_VISIBILITY}}`. Public sign-up is not open yet (accounts are created by the administrator), so **Unlisted** (anyone with the link) or **Private** (named testers) fits until it is. Switch to Public later without a new review. |
+| Visibility | **Public**, the owner's choice (17 November 2026). Public sign-up on app.vistralo.com must be open before this goes live, or people who install the extension have no way to make an account and save. |
 | Regions | All regions, unless the owner's legal review says otherwise. |
 | Pricing | Free. The extension sells nothing; plans, if any, are in the web app. |
 

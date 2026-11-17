@@ -8,7 +8,7 @@ These must be true first, or the extension will be listed but fail when people u
 
 - [ ] **The web app's import route is live.** "Save to Vistralo" opens `https://app.vistralo.com/#import/<id>`, which ships with PR arclayer-ltd/vistralo#25. Merge it to `main` (which deploys app.vistralo.com) and check the route in production before submitting.
 - [ ] **The privacy policy is published.** Fill the placeholders in `docs/legal/PRIVACY-DRAFT.md` (including its "Vistralo for Chrome" section and Limited Use statement), get it reviewed, and publish it at a public URL on vistralo.com. Write that URL into `{{PRIVACY_POLICY_URL}}` below.
-- [ ] **You have decided who may install it.** Accounts are still created by the administrator, so choose Unlisted or Private until sign-up opens (see Distribution below).
+- [ ] **Public sign-up is open.** The listing is Public (decided 17 November 2026), so anyone can install it; without open sign-up on app.vistralo.com they could not make an account to save into.
 - [ ] **Someone has recorded with a release build in normal Chrome.** The automated journey uses Chrome for Testing; a real camera, microphone and Chrome's "Choose what to share" dialog need a person. See "Load the release build" below.
 
 ## 2. Things only you can supply
@@ -16,12 +16,12 @@ These must be true first, or the extension will be listed but fail when people u
 | Placeholder | Where it goes | What it is |
 | --- | --- | --- |
 | `{{PRIVACY_POLICY_URL}}` | `LISTING.md` description and privacy tab | The public URL of the published privacy policy |
-| `{{SUPPORT_URL}}` | `LISTING.md` additional fields | A support page, or leave blank and rely on contact@vistralo.com |
-| `{{CWS_VISIBILITY}}` | Distribution tab | Public, Unlisted or Private |
+| Support URL | `LISTING.md` additional fields | Decided: `mailto:hello@arclayer.co` |
+| Visibility | Distribution tab | Decided: Public |
 | `{{CWS_PUBLISHER_NAME}}` | Developer account | The publisher name shown on the listing (for example "Dynamix LTD" or "Vistralo") |
 | `{{CWS_TRADER_STATUS}}` | Developer account | Trader or non-trader (EU consumer law). A company selling a service is normally a trader; traders' address, email and phone are shown publicly once verified |
-| `{{CWS_CONTACT_EMAIL}}` | Developer account | The verified contact email for the publisher (contact@vistralo.com is the address the legal drafts use; confirm it is monitored) |
-| `{{EXTENSION_ACCESS_POLICY}}` | `docs/legal/PRIVACY-DRAFT.md` | Confirm that no person at Vistralo views customers' recordings except as the Limited Use statement allows (see that section) |
+| Contact email | Developer account | Decided: hello@arclayer.co (verify it in the dashboard) |
+| Access to recordings | `docs/legal/PRIVACY-DRAFT.md` | Decided: nobody at Vistralo watches customers' recordings; filled in |
 | The privacy draft's existing fields | `docs/legal/PRIVACY-DRAFT.md` | `{{EFFECTIVE_DATE}}`, `{{PROJECT_RETENTION}}` and the rest listed in `docs/legal/README.md` |
 
 Also confirm the facts the drafts mark as unconfirmed: company name Dynamix LTD, its Dhaka address, and contact@vistralo.com.
@@ -31,7 +31,7 @@ Also confirm the facts the drafts mark as unconfirmed: company name Dynamix LTD,
 1. Sign in at https://chrome.google.com/webstore/devconsole with the Google account that will own the listing. Use a company account, not a personal one: an account can create only one publisher in its lifetime, and others can be added to it later as members.
 2. Turn on 2-Step Verification for that Google account. Google requires it before you can publish or update.
 3. Accept the developer agreement and pay the one-time registration fee (US$5 when last announced by Google; the dashboard shows the current amount).
-4. In **Account**, set the publisher name (`{{CWS_PUBLISHER_NAME}}`), add and **verify** the contact email (`{{CWS_CONTACT_EMAIL}}`; Google sends a link), and make the trader declaration (`{{CWS_TRADER_STATUS}}`). A trader also gives a phone number and address, which are verified and shown on the listing.
+4. In **Account**, set the publisher name (`{{CWS_PUBLISHER_NAME}}`), add and **verify** the contact email (hello@arclayer.co; Google sends a link), and make the trader declaration (`{{CWS_TRADER_STATUS}}`). A trader also gives a phone number and address, which are verified and shown on the listing.
 5. Optional but useful: verify vistralo.com in Google Search Console with the same Google account, so it can be chosen as the listing's Official URL.
 
 ## 4. Build the package
@@ -63,7 +63,7 @@ For an update, raise `version` in `extension/manifest.json` first; the store ref
 1. In the developer dashboard, **New item**, upload the release zip.
 2. **Store listing** tab: paste the description, choose the category and language, upload the icon, the five screenshots in order and both promo tiles, and fill the URLs, all from `LISTING.md`.
 3. **Privacy practices** tab: paste the single purpose and each permission justification, answer "No" to remote code, tick the data categories and the three certifications as `LISTING.md` lists them, and enter `{{PRIVACY_POLICY_URL}}`.
-4. **Distribution** tab: visibility `{{CWS_VISIBILITY}}`, all regions, free. For Private, add the testers' emails or a Google Group.
+4. **Distribution** tab: visibility Public, all regions, free.
 5. If the dashboard asks for test instructions: recording, recovery and download need no account. "Save to Vistralo" needs a Vistralo account; create a reviewer account in the app's administration and give its email and password in that field only (never in the repository).
 6. **Submit for review.** Choose "publish automatically after approval" off if you want to time the release; an approved item then waits up to 30 days for you to publish it.
 
