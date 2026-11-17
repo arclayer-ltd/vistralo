@@ -29,7 +29,7 @@ What you can do
 • Add your microphone, see its level, and mute it while recording
 • Show your camera in a bubble on the page, in three sizes
 • Count down from 3 before the recording starts
-• Pause, resume, start over or discard from a bar on the page, the toolbar popup or keyboard shortcuts (Alt+Shift+V to start and stop, Alt+Shift+K to pause)
+• Pause, resume, start over or discard from the toolbar popup, keyboard shortcuts (Alt+Shift+V to start and stop, Alt+Shift+K to pause) or a bar on the page. When you record a tab, the bar stays out of the video and shows only while you are paused
 • Keep going if Chrome or your computer crashes: the recording is written to your browser every second and can be recovered
 • Download a recording as a WebM file instead of saving it
 

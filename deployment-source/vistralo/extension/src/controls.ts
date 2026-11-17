@@ -28,7 +28,7 @@ async function mount() {
     /* Unstyled controls still work. */
   }
   root.innerHTML = `
-    <div class="count" part="count" hidden><span></span><p>Esc to cancel</p></div>
+    <div class="count" part="count" hidden><span></span><p>Esc to cancel</p><p class="tab-hint" hidden>These controls stay out of the recording. Pause or stop from Vistralo in the toolbar.</p></div>
     <div class="bar" role="toolbar" aria-label="Vistralo recording" hidden>
       <span class="dot" aria-hidden="true"></span>
       <time class="clock" aria-live="off">0:00</time>
@@ -53,6 +53,7 @@ async function mount() {
   const mute = q<HTMLButtonElement>('[data-action="mute"]');
   const size = q<HTMLButtonElement>('[data-action="size"]');
   const meter = q<HTMLIFrameElement>(".meter");
+  const tabHint = q<HTMLElement>(".tab-hint");
   let hidden = false;
   let bubble: HTMLElement | null = null;
   let snapshot: Snapshot | null = null;
@@ -135,8 +136,13 @@ async function mount() {
       meter.hidden = false;
     }
     count.hidden = s.phase !== "countdown";
-    bar.hidden = hidden || s.phase === "countdown" || s.phase === "requesting";
-    reveal.hidden = !hidden;
+    // Recording a tab records everything drawn in it, so the bar and its reveal button show there
+    // only while paused, when no frames are kept. Elsewhere Chrome records a window or the screen,
+    // which shows the controls anyway, or the camera alone, which never shows the page.
+    const barAllowed = s.mode !== "tab" || s.phase === "paused";
+    tabHint.hidden = s.mode !== "tab";
+    bar.hidden = hidden || !barAllowed || s.phase === "countdown" || s.phase === "requesting";
+    reveal.hidden = !hidden || !barAllowed;
     pause.textContent = s.phase === "paused" ? "▶" : "❚❚";
     pause.setAttribute("aria-label", s.phase === "paused" ? "Resume recording" : "Pause recording");
     bar.classList.toggle("is-paused", s.phase === "paused");
