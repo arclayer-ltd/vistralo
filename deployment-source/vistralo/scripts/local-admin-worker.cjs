@@ -16,6 +16,7 @@ const { loadEntitlement, loadPlan, checkQuota, checkDuration } = require('../src
 const { includedPlans, includedKeys, chooseKeys } = require('../src/included-ai.cjs');
 const { improvedName, storedStills } = require('../src/project-labels.cjs');
 const { sweepExpired } = require('../src/retention-sweep.cjs');
+const { withWorkCopy, clearLeftovers, formatBytes } = require('../src/work-copies.cjs');
 
 // The analysis returns a full brief; narration is the part meant to be spoken.
 function narrationFrom(markdown) {
@@ -575,6 +576,13 @@ async function start() {
     catch (error) { console.error('Retention sweep skipped:', String(error.message || error).slice(0, 300)); }
   };
 
+  // A job's local copy is removed when the job ends. A copy can still be left if the worker was killed mid-job,
+  // so at start-up copies untouched for over a day are removed too. A job running now is never that old.
+  try {
+    const cleared = clearLeftovers(service.store);
+    if (cleared.found) console.log(`Removed ${cleared.removed} of ${cleared.found} old working copies (${formatBytes(cleared.bytes)})`);
+  } catch (error) { console.error('Working copy clear-up skipped:', String(error.message || error).slice(0, 300)); }
+
   console.log('Capture worker signed in');
   // The app treats a heartbeat older than 60 s as offline, and a job can run far longer than that.
   const beat = setInterval(() => { heartbeat().catch(() => {}); }, 15000);
@@ -591,110 +599,113 @@ async function start() {
       percentFloor = 0;
       spent = 0;
       const stopWatch = watchCancel(job);
-      let native;
       try {
         const row = unwrap(await db.from('vistralo_projects').select('*').eq('id', job.project_id).eq('owner_id', job.owner_id).single());
         assert(!row.document.trashed, 'Project is in Trash');
         entitlement = await loadEntitlement(db, job.owner_id);
         checkQuota(entitlement, job);
         const p = row.document;
-        native = service.store.create(p.name, job.kind === 'website' ? 'walkthrough' : 'record');
-        const nativeRoot = service.store.dir(native.id);
-        const files = { ...p.data.files };
-        let changes = {};
-        if (job.kind === 'website') {
-          await reportProgress(job, { percent: 1, stage: 'Starting browser', detail: job.payload.url || '' });
-          const stopProgress = publishProgress(job, native.id);
-          let manifest;
-          try {
-            manifest = await service.walkthrough(native.id, {
-            url: job.payload.url,
-            pages: [],
-            actions: [],
-            viewports: Array.isArray(job.payload.viewports) ? job.payload.viewports.slice(0, 2) : [{ width: 1440, height: 900 }],
-            localApproved: false,
-            chromiumSandbox: false,
-              channel: 'chrome',
-              headless: true,
-            });
-          } finally { stopProgress(); }
-          assert(manifest.sessions?.some((s) => !s.error), 'Website capture could not read the page');
-          const briefRel = path.posix.join(path.posix.dirname(manifest.path), 'implementation-brief.md');
-          const brief = fs.readFileSync(within(nativeRoot, briefRel, true), 'utf8');
-          const chosen = (manifest.sessions || []).flatMap((s) => spread(s.frames || [], 12));
-          let references = 0;
-          const evidence = [];
-          for (const frame of chosen) {
-            if (!frame.file) continue;
-            evidence.push(await upload(job, frame.file, nativeRoot, files));
-            references += 1;
-            await reportProgress(job, {
-              percent: 85 + Math.round((references / (chosen.length + 1)) * 10),
-              stage: 'Saving evidence',
-              detail: `${references} of ${chosen.length} frames`,
-            });
+        // The job works in a local copy on this server's disk. withWorkCopy removes that copy, folder and store
+        // row, as soon as the work ends: finished, failed or cancelled. Everything the job keeps is in Storage.
+        const mode = job.kind === 'website' ? 'walkthrough' : 'record';
+        const changes = await withWorkCopy(service.store, p.name, mode, async (native, nativeRoot) => {
+          const files = { ...p.data.files };
+          let changes = {};
+          if (job.kind === 'website') {
+            await reportProgress(job, { percent: 1, stage: 'Starting browser', detail: job.payload.url || '' });
+            const stopProgress = publishProgress(job, native.id);
+            let manifest;
+            try {
+              manifest = await service.walkthrough(native.id, {
+              url: job.payload.url,
+              pages: [],
+              actions: [],
+              viewports: Array.isArray(job.payload.viewports) ? job.payload.viewports.slice(0, 2) : [{ width: 1440, height: 900 }],
+              localApproved: false,
+              chromiumSandbox: false,
+                channel: 'chrome',
+                headless: true,
+              });
+            } finally { stopProgress(); }
+            assert(manifest.sessions?.some((s) => !s.error), 'Website capture could not read the page');
+            const briefRel = path.posix.join(path.posix.dirname(manifest.path), 'implementation-brief.md');
+            const brief = fs.readFileSync(within(nativeRoot, briefRel, true), 'utf8');
+            const chosen = (manifest.sessions || []).flatMap((s) => spread(s.frames || [], 12));
+            let references = 0;
+            const evidence = [];
+            for (const frame of chosen) {
+              if (!frame.file) continue;
+              evidence.push(await upload(job, frame.file, nativeRoot, files));
+              references += 1;
+              await reportProgress(job, {
+                percent: 85 + Math.round((references / (chosen.length + 1)) * 10),
+                stage: 'Saving evidence',
+                detail: `${references} of ${chosen.length} frames`,
+              });
+            }
+            // The walkthrough recording used to be discarded; keep it so the brief's
+            // video link resolves and narration has footage to speak over.
+            await reportProgress(job, { percent: 95, stage: 'Saving recording', detail: 'Uploading the walkthrough video' });
+            let walkthrough = null;
+            for (const session of manifest.sessions || []) {
+              if (session.video && !walkthrough) walkthrough = await upload(job, session.video, nativeRoot, files);
+            }
+            // A narration problem must not discard a capture that already succeeded.
+            let script = null, scriptError = null;
+            if (job.payload.narrate) {
+              await reportProgress(job, { percent: 97, stage: 'Drafting narration', detail: 'Analysing evidence frames' });
+              try { script = await draftScript(job, p, native.id, manifest); }
+              catch (failure) { scriptError = String(failure.message || failure).slice(0, 300); console.error('Script draft failed', scriptError); }
+            }
+            changes = {
+              references,
+              sections: (brief.match(/^## /gm) || []).length,
+              eventLabel: script ? 'Script ready' : 'Analyzed',
+              video: walkthrough || p.video,
+              data: {
+                ...p.data, files, brief,
+                walkthroughVideo: walkthrough,
+                analysisEvidence: evidence,
+                ...(script ? { script: script.text, scriptModel: script.model, scriptApproved: false } : {}),
+                // Always overwrite: spreading p.data would otherwise keep a stale
+                // failure on the project long after a later draft succeeded.
+                ...(job.payload.narrate ? { scriptError: scriptError || null } : {}),
+                evidence: { url: job.payload.url, coverage: manifest.coverage, limitations: manifest.limitations },
+              },
+            };
+          } else if (job.kind === 'narrate') {
+            changes = job.payload && job.payload.auto
+              ? await voiceFromRecording(job, p, native.id, nativeRoot, files)
+              : await narrate(job, p, native.id, nativeRoot, files);
+          } else {
+            const preview = job.kind === 'render' && job.payload?.mode === 'preview';
+            const source = job.kind === 'render' && !preview ? job.payload.plan?.source : p.video;
+            assert(typeof source === 'string' && source.startsWith(`${job.owner_id}/${job.project_id}/`) && files[source], 'Invalid project source');
+            const local = path.join(nativeRoot, 'cloud-source' + path.extname(source));
+            await download(source, local);
+            if (p.data.sourceSha256 && source === p.data.video) assert(await hash(local) === p.data.sourceSha256, 'Source checksum mismatch');
+            const imported = await service.importFile(native.id, local);
+            const probe = await service.media.probe(within(nativeRoot, imported.file, true));
+            const stream = probe.streams.find((s) => s.codec_type === 'video');
+            assert(stream, 'Source contains no video');
+            const sourcePath = within(nativeRoot, imported.file, true);
+            // Browser MediaRecorder WebM has no duration in its header, so measure by decoding when needed.
+            const info = { duration: await service.media.measureDuration(sourcePath), width: stream.width, height: stream.height };
+            if (preview) {
+              const output = await service.media.output(nativeRoot, 'preview', ['-i', sourcePath, '-map', '0:v:0', '-map', '0:a:0?', '-vf', 'fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k'], { signal });
+              const file = await upload(job, output.file, nativeRoot, files);
+              changes = { video: file, duration: output.duration, eventLabel: 'Ready', data: { ...p.data, files, sourceMaster: p.data.sourceMaster || p.video, output: { ...output, file }, mediaInfo: { ...info, duration: output.duration } } };
+            } else if (job.kind === 'render') {
+              const plan = { ...job.payload.plan, source: imported.file };
+              validatePlan(plan);
+              service.savePlan(native.id, plan);
+              const output = await service.process(native.id, 'render');
+              const file = await upload(job, output.file, nativeRoot, files);
+              changes = { video: file, duration: output.duration, eventLabel: 'Ready', data: { ...p.data, files, sourceMaster: p.data.sourceMaster || p.video, sourceSha256: output.sha256, output: { ...output, file }, mediaInfo: { ...info, duration: output.duration } } };
+            } else changes = { duration: info.duration, eventLabel: 'Uploaded', data: { ...p.data, files, mediaInfo: info } };
           }
-          // The walkthrough recording used to be discarded; keep it so the brief's
-          // video link resolves and narration has footage to speak over.
-          await reportProgress(job, { percent: 95, stage: 'Saving recording', detail: 'Uploading the walkthrough video' });
-          let walkthrough = null;
-          for (const session of manifest.sessions || []) {
-            if (session.video && !walkthrough) walkthrough = await upload(job, session.video, nativeRoot, files);
-          }
-          // A narration problem must not discard a capture that already succeeded.
-          let script = null, scriptError = null;
-          if (job.payload.narrate) {
-            await reportProgress(job, { percent: 97, stage: 'Drafting narration', detail: 'Analysing evidence frames' });
-            try { script = await draftScript(job, p, native.id, manifest); }
-            catch (failure) { scriptError = String(failure.message || failure).slice(0, 300); console.error('Script draft failed', scriptError); }
-          }
-          changes = {
-            references,
-            sections: (brief.match(/^## /gm) || []).length,
-            eventLabel: script ? 'Script ready' : 'Analyzed',
-            video: walkthrough || p.video,
-            data: {
-              ...p.data, files, brief,
-              walkthroughVideo: walkthrough,
-              analysisEvidence: evidence,
-              ...(script ? { script: script.text, scriptModel: script.model, scriptApproved: false } : {}),
-              // Always overwrite: spreading p.data would otherwise keep a stale
-              // failure on the project long after a later draft succeeded.
-              ...(job.payload.narrate ? { scriptError: scriptError || null } : {}),
-              evidence: { url: job.payload.url, coverage: manifest.coverage, limitations: manifest.limitations },
-            },
-          };
-        } else if (job.kind === 'narrate') {
-          changes = job.payload && job.payload.auto
-            ? await voiceFromRecording(job, p, native.id, nativeRoot, files)
-            : await narrate(job, p, native.id, nativeRoot, files);
-        } else {
-          const preview = job.kind === 'render' && job.payload?.mode === 'preview';
-          const source = job.kind === 'render' && !preview ? job.payload.plan?.source : p.video;
-          assert(typeof source === 'string' && source.startsWith(`${job.owner_id}/${job.project_id}/`) && files[source], 'Invalid project source');
-          const local = path.join(nativeRoot, 'cloud-source' + path.extname(source));
-          await download(source, local);
-          if (p.data.sourceSha256 && source === p.data.video) assert(await hash(local) === p.data.sourceSha256, 'Source checksum mismatch');
-          const imported = await service.importFile(native.id, local);
-          const probe = await service.media.probe(within(nativeRoot, imported.file, true));
-          const stream = probe.streams.find((s) => s.codec_type === 'video');
-          assert(stream, 'Source contains no video');
-          const sourcePath = within(nativeRoot, imported.file, true);
-          // Browser MediaRecorder WebM has no duration in its header, so measure by decoding when needed.
-          const info = { duration: await service.media.measureDuration(sourcePath), width: stream.width, height: stream.height };
-          if (preview) {
-            const output = await service.media.output(nativeRoot, 'preview', ['-i', sourcePath, '-map', '0:v:0', '-map', '0:a:0?', '-vf', 'fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k'], { signal });
-            const file = await upload(job, output.file, nativeRoot, files);
-            changes = { video: file, duration: output.duration, eventLabel: 'Ready', data: { ...p.data, files, sourceMaster: p.data.sourceMaster || p.video, output: { ...output, file }, mediaInfo: { ...info, duration: output.duration } } };
-          } else if (job.kind === 'render') {
-            const plan = { ...job.payload.plan, source: imported.file };
-            validatePlan(plan);
-            service.savePlan(native.id, plan);
-            const output = await service.process(native.id, 'render');
-            const file = await upload(job, output.file, nativeRoot, files);
-            changes = { video: file, duration: output.duration, eventLabel: 'Ready', data: { ...p.data, files, sourceMaster: p.data.sourceMaster || p.video, sourceSha256: output.sha256, output: { ...output, file }, mediaInfo: { ...info, duration: output.duration } } };
-          } else changes = { duration: info.duration, eventLabel: 'Uploaded', data: { ...p.data, files, mediaInfo: info } };
-        }
+          return changes;
+        });
         checkCancelled();
         const latest = unwrap(await db.from('vistralo_projects').select('document,updated_at').eq('id', job.project_id).single());
         assert(!latest.document.trashed, 'Project moved to Trash during processing');
