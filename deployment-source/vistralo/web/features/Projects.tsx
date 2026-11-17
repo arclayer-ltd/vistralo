@@ -3,6 +3,7 @@ import type { Project, WorkspaceAdapter } from "../contracts";
 import type { MenuAction } from "../components/Primitives";
 import type { Library } from "../app/useProjects";
 import type { CreateFlow } from "./create-flows";
+import { Icon } from "../components/Icon";
 import {
   LibrarySearch,
   LibraryToolbar,
@@ -35,9 +36,15 @@ export function Projects({
   loading,
   library,
   onShortcuts,
+  folder = "",
+  onFolderRename,
+  onFolderRemove,
 }: {
   projects: Project[];
   view: string;
+  folder?: string;
+  onFolderRename?: () => void;
+  onFolderRemove?: () => void;
   adapter: WorkspaceAdapter;
   locale: string;
   create: (flow: CreateFlow) => void;
@@ -49,7 +56,7 @@ export function Projects({
   library: Library;
   onShortcuts: () => void;
 }) {
-  const lib = useLibrary({ projects, view, adapter, locale, onShortcuts });
+  const lib = useLibrary({ projects, view, folder, adapter, locale, onShortcuts });
   const labels = libraryLabels(locale);
   const { selected, current, scope, visible, layout } = lib;
   const waiting = loading && !projects.length;
@@ -64,7 +71,9 @@ export function Projects({
               ? labels.trash
               : view === "shared"
                 ? labels.shared
-                : labels.projects}
+                : view === "folder"
+                  ? folder
+                  : labels.projects}
           </h1>
           {!waiting && (
             <p className="page-count edge" role="status">
@@ -82,7 +91,21 @@ export function Projects({
         </div>
         <LibrarySearch lib={lib} labels={labels} />
       </header>
-      {view !== "projects" && (
+      {view === "folder" ? (
+        <div className="page-note folder-note">
+          <span>A folder. Use Move to on a project to add it or take it out.</span>
+          <span className="folder-actions">
+            <button className="button button-ghost" onClick={onFolderRename}>
+              <Icon name="edit" />
+              Rename folder
+            </button>
+            <button className="button button-ghost" onClick={onFolderRemove}>
+              <Icon name="close" />
+              Remove folder
+            </button>
+          </span>
+        </div>
+      ) : view !== "projects" && (
         <p className="page-note">
           {view === "trash"
             ? "Deleted projects stay here until you restore or permanently delete them."

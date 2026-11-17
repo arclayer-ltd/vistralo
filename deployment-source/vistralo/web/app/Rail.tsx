@@ -13,6 +13,7 @@ import { docsUrl } from "./routing";
 import { RecordControl } from "./RecordControl";
 import type { CreateFlow } from "../features/create-flows";
 import { projectTitle } from "../utils";
+import { folderRoute, type Folder } from "../features/folders";
 function RailRow({
   icon,
   label,
@@ -51,6 +52,8 @@ export function Rail({
   locale,
   projects,
   view,
+  folder,
+  folders,
   profile,
   billing,
   mobileNavigation,
@@ -74,6 +77,8 @@ export function Rail({
   locale: string;
   projects: Project[];
   view: string;
+  folder: string;
+  folders: Folder[];
   profile: Profile;
   billing: Billing;
   mobileNavigation: boolean;
@@ -229,6 +234,21 @@ export function Rail({
         ))}
       </nav>
       <div className="rail-projects">
+        <section aria-label="Folders">
+          <h2>Folders</h2>
+          {folders.map((f) => (
+            <RailRow
+              key={f.name}
+              icon="folder"
+              label={`${f.name} (${f.count})`}
+              active={view === "folder" && folder === f.name}
+              onClick={() => go(folderRoute(f.name))}
+            />
+          ))}
+          {!folders.length && (
+            <p className="rail-empty">Use Move to on a project to file it in a folder</p>
+          )}
+        </section>
         <section>
           <h2>Pinned</h2>
           {pinned.map((p) => (

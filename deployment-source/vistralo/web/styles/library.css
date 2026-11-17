@@ -787,3 +787,59 @@
     background-image: none;
   }
 }
+
+/* Folders: the folder page actions, and the folder shown on cards and list rows. */
+.folder-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.folder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.card-folder {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  color: var(--fg-3);
+}
+.list-folder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--fg-3);
+  font-size: var(--font-caption);
+  line-height: var(--line-caption);
+}
+.folder-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.folder-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.folder-choice:hover {
+  background: var(--hover-bg);
+}
+.folder-choice span {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.folder-choice small {
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}

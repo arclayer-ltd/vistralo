@@ -347,6 +347,19 @@ export function ProjectCard({
             </span>
           </span>
           {p.status !== "ready" && <StatusBadge project={p} />}
+          {p.folder && (
+            <span
+              className="card-folder tooltip-host"
+              role="img"
+              tabIndex={0}
+              aria-label={`In folder ${p.folder}`}
+            >
+              <Icon name="folder" size={16} />
+              <span className="tooltip" role="tooltip">
+                In folder {p.folder}
+              </span>
+            </span>
+          )}
           <time
             className="event-time tooltip-host"
             tabIndex={0}
