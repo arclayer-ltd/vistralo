@@ -141,22 +141,68 @@ export function findSharingBar(pixels: ArrayLike<number>, width: number, top: nu
   return null;
 }
 
-/** The commonest colour in a row of RGBA pixels, as a CSS colour. */
-export function commonColour(row: ArrayLike<number>) {
-  const counts = new Map<number, number>();
-  let best = 0;
-  let bestCount = -1;
-  for (let i = 0; i + 2 < row.length; i += 4) {
-    // Nearby shades count as one, so antialiasing and compression noise do not split the vote.
-    const key = ((row[i] >> 3) << 10) | ((row[i + 1] >> 3) << 5) | (row[i + 2] >> 3);
-    const n = (counts.get(key) ?? 0) + 1;
-    counts.set(key, n);
-    if (n > bestCount) {
-      bestCount = n;
-      best = i;
-    }
+/**
+ * Paints over the bar with what is around it: each column fades from the pixel just above the bar to
+ * the one just below it, then the patch is softened together with a margin of the real picture, so
+ * it takes on the colours on every side instead of standing out as a box.
+ */
+export function fillGap(context: OffscreenCanvasRenderingContext2D, bar: BarRect, scale: number) {
+  const canvas = context.canvas;
+  // Worked at a quarter of the size and scaled back up: a sixteenth of the pixels to blend and blur,
+  // and the scaling itself smooths what is left of the column streaks.
+  const q = 4;
+  const pad = Math.round(16 * scale);
+  const ex = Math.max(0, bar.x - pad);
+  const ey = Math.max(0, bar.y - pad);
+  const ew = Math.min(canvas.width, bar.x + bar.width + pad) - ex;
+  const eh = Math.min(canvas.height, bar.y + bar.height + pad) - ey;
+  const sw = Math.ceil(ew / q);
+  const sh = Math.ceil(eh / q);
+  const ix = (bar.x - ex) / q;
+  const iy = (bar.y - ey) / q;
+  const iw = bar.width / q;
+  const ih = bar.height / q;
+  const below = Math.min(canvas.height - 1, bar.y + bar.height - 2);
+  const [work, low, soft] = scratch(sw, sh, Math.ceil(iw), Math.ceil(ih));
+  work.globalCompositeOperation = "source-over";
+  work.drawImage(canvas, ex, ey, ew, eh, 0, 0, sw, sh);
+  // Each column fades from the pixel above the bar to the one below it.
+  work.drawImage(canvas, bar.x, bar.y - 1, bar.width, 1, ix, iy, iw, ih);
+  low.globalCompositeOperation = "source-over";
+  low.clearRect(0, 0, low.canvas.width, low.canvas.height);
+  low.drawImage(canvas, bar.x, below, bar.width, 1, 0, 0, iw, ih);
+  low.globalCompositeOperation = "destination-in";
+  const fade = low.createLinearGradient(0, 0, 0, ih);
+  fade.addColorStop(0, "rgba(0, 0, 0, 0)");
+  fade.addColorStop(1, "rgba(0, 0, 0, 1)");
+  low.fillStyle = fade;
+  low.fillRect(0, 0, iw, ih);
+  work.drawImage(low.canvas, 0, 0, iw, ih, ix, iy, iw, ih);
+  // Softened together with a margin of the real picture, over an unsoftened copy so the patch's own
+  // edges never fade to the bar underneath.
+  soft.filter = "none";
+  soft.drawImage(work.canvas, 0, 0);
+  soft.filter = `blur(${Math.max(1, Math.round((8 * scale) / q))}px)`;
+  soft.drawImage(work.canvas, 0, 0);
+  soft.filter = "none";
+  context.imageSmoothingQuality = "high";
+  context.drawImage(soft.canvas, ix, iy, iw, ih, bar.x, bar.y, bar.width, bar.height);
+}
+
+let scratchCanvases: [OffscreenCanvasRenderingContext2D, OffscreenCanvasRenderingContext2D, OffscreenCanvasRenderingContext2D] | null = null;
+function scratch(ew: number, eh: number, w: number, h: number) {
+  if (!scratchCanvases) {
+    // On the CPU like the frame canvas, so nothing is copied to and from the GPU each frame.
+    const make = () => new OffscreenCanvas(2, 2).getContext("2d", { willReadFrequently: true })!;
+    scratchCanvases = [make(), make(), make()];
   }
-  return `rgb(${row[best]} ${row[best + 1]} ${row[best + 2]})`;
+  const [work, low, soft] = scratchCanvases;
+  for (const [c, cw, ch] of [[work, ew, eh], [low, w, h], [soft, ew, eh]] as const)
+    if (c.canvas.width !== cw || c.canvas.height !== ch) {
+      c.canvas.width = cw;
+      c.canvas.height = ch;
+    }
+  return scratchCanvases;
 }
 
 /** How often the picture is searched again, in milliseconds: the bar moves only when it is hidden
@@ -206,12 +252,7 @@ export function withoutSharingBar(source: MediaStreamTrack, display: { width: nu
           const band = searchBand(geo);
           bar = band.rows > 0 ? findSharingBar(context.getImageData(0, band.top, width, band.rows).data, width, band.top, band.rows, geo) : null;
         }
-        // One flat colour, the commonest just above the bar in this very frame: stretching that row
-        // would drag every edge it crosses down into streaks.
-        if (bar) {
-          context.fillStyle = commonColour(context.getImageData(bar.x, bar.y - 1, bar.width, 1).data);
-          context.fillRect(bar.x, bar.y, bar.width, bar.height);
-        }
+        if (bar) fillGap(context, bar, scale);
         controller.enqueue(new VideoFrame(canvas, { timestamp: frame.timestamp, ...(frame.duration ? { duration: frame.duration } : {}) }));
       } finally {
         frame.close();

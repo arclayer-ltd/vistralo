@@ -264,8 +264,4 @@ test("Chrome's floating sharing bar is found in a whole-screen frame, and nothin
   const noButton = frame((set) => box(set, 686, 1236, 948, 1010));
   assert.equal(bar.findSharingBar(noButton, W, band.top, band.rows, geo), null, 'without the blue button it is not the bar');
   assert.equal(bar.findSharingBar(banner, W, band.top, band.rows, geo), null, 'a banner running down to the taskbar is not the bar');
-  // The patch is painted in the commonest colour just above it, not a stretched row of edges.
-  const row = new Uint8ClampedArray(40 * 4).fill(250);
-  for (let i = 0; i < 6; i++) row.set([20, 20, 20, 255], i * 4 * 6);
-  assert.equal(bar.commonColour(row), 'rgb(250 250 250)');
 });
