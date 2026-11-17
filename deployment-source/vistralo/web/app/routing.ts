@@ -3,7 +3,7 @@ import { cloudConfigured } from "../cloud";
 import type { AppMode, Project } from "../contracts";
 export const docsUrl = "https://vistralo.com/#how";
 /** The published privacy policy, built from docs/legal/PRIVACY.md. */
-export const privacyUrl = "/privacy";
+export const privacyUrl = "https://vistralo.com/privacy";
 export const getMode = (): AppMode =>
   location.hash.startsWith("#demo") ||
   document

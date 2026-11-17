@@ -1,6 +1,6 @@
 # Vistralo data processing addendum — DRAFT, NOT PUBLISHED
 
-Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Version `{{VERSION_AND_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Version `{{VERSION_AND_DATE}}`
 
 **Not approved. Do not publish, link or sign this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft and is not legal advice. A data processing agreement has legal effect, and several clauses below depend on choices only counsel can make: which transfer mechanism applies to a processor established in Bangladesh, whether representatives in the EU and UK are required, and the liability terms. The draft sets out the facts of the processing so that review can start from something accurate.
 

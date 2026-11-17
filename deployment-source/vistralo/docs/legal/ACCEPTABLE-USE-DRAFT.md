@@ -1,6 +1,6 @@
 # Vistralo acceptable use policy — DRAFT, NOT PUBLISHED
 
-Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact hello@arclayer.co · Effective `{{EFFECTIVE_DATE}}`
+Operator Rezan Ferdous (an individual), Enayetpur, Sirajganj, Bangladesh · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`
 
 **Not approved. Do not publish or link this until a lawyer has reviewed it and every `{{FIELD}}` is filled.** It is an original draft and is not legal advice.
 
@@ -49,7 +49,7 @@ We may remove or disable the content, revoke its share links, suspend the accoun
 
 ## Reporting a problem
 
-To report content that breaks this policy, email hello@arclayer.co with the share link and what is wrong with it. Copyright complaints follow the Copyright and Takedown Policy. `{{ABUSE_MAILBOX_IF_SEPARATE}}`
+To report content that breaks this policy, email contact@vistralo.com with the share link and what is wrong with it. Copyright complaints follow the Copyright and Takedown Policy. `{{ABUSE_MAILBOX_IF_SEPARATE}}`
 
 ## Facts to check before publishing
 

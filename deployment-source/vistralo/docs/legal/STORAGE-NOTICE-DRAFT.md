@@ -6,4 +6,4 @@ When paid plans are switched on, opening a checkout loads Paddle.js from Paddle 
 
 There are no advertising or analytics scripts on either site. Verify again before publishing, and whenever a third-party script is added. Explain these essential storage operations in the final privacy notice. If non-essential analytics, tracking or similar device storage is added, assess EU and UK consent requirements and implement controls **before** setting it; a generic banner alone does not make the practice compliant.
 
-Operator Rezan Ferdous · Website https://vistralo.com · Contact hello@arclayer.co · Effective `{{EFFECTIVE_DATE}}`.
+Operator Rezan Ferdous · Website https://vistralo.com · Contact contact@vistralo.com · Effective `{{EFFECTIVE_DATE}}`.

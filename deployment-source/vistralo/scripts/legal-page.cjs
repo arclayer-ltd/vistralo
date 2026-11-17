@@ -55,14 +55,15 @@ function render(markdown) {
 /** A whole page: no scripts, indexable, readable on a phone. */
 function page({ markdown, path, description }) {
   const { title, html } = render(markdown);
-  const canonical = `https://app.vistralo.com${path}`;
+  // The published copy lives on vistralo.com (built by the vistralo-home repository from the same file).
+  const canonical = `https://vistralo.com${path}`;
   return `<!doctype html>
 <html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow"><meta name="color-scheme" content="light"><title>${escape(title)}</title><meta name="description" content="${escape(description)}"><link rel="canonical" href="${canonical}"><link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/legal.css"></head><body>
 <header class="legal-bar"><a class="legal-brand" href="https://vistralo.com/"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M4 4H24L20 8H8V20L4 24Z M28 8V28H8L12 24H24V12Z"/></svg>vistralo</a><a class="legal-app" href="/">Open Vistralo</a></header>
 <main class="legal-main">
 ${html}
 </main>
-<footer class="legal-foot"><p>Questions? Write to <a href="mailto:hello@arclayer.co">hello@arclayer.co</a>.</p></footer>
+<footer class="legal-foot"><p>Questions? Write to <a href="mailto:contact@vistralo.com">contact@vistralo.com</a>.</p></footer>
 </body></html>
 `;
 }
