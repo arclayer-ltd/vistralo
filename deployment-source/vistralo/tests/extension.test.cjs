@@ -205,3 +205,36 @@ test('a take needs the microphone and camera it uses, allowed for good', () => {
   assert.match(permissions.permissionMessage(['camera'], { microphone: 'granted', camera: 'prompt' }), /camera.*Allow on every visit/);
   assert.match(permissions.permissionMessage(['microphone', 'camera'], { microphone: 'denied', camera: 'prompt' }), /blocking the microphone and the camera/);
 });
+
+test("Chrome's floating sharing bar is found in a whole-screen frame, and nothing else is", () => {
+  const bar = load('extension/src/sharing-bar.ts');
+  // A 1920 x 1080 frame of a 1536 x 864 screen at 125 %, with a 48-point taskbar.
+  const W = 1920;
+  const geo = { scale: 1.25, workBottom: 1020 };
+  const band = bar.searchBand(geo);
+  const frame = (paint) => {
+    const px = new Uint8ClampedArray(W * band.rows * 4).fill(245);
+    paint((x, y, v) => px.fill(v, ((y - band.top) * W + x) * 4, ((y - band.top) * W + x) * 4 + 3));
+    return px;
+  };
+  // The bar: a one-pixel border at y 948, white inside, 550 pixels wide around the centre.
+  const withBar = frame((set) => {
+    for (let x = 686; x <= 1236; x++) set(x, 948, 229);
+    for (let y = 949; y < 1012; y++) for (let x = 686; x <= 1236; x++) set(x, y, 255);
+  });
+  const found = bar.findSharingBar(withBar, W, band.top, band.rows, geo);
+  assert.ok(found, 'the bar is found');
+  assert.ok(found.x <= 686 && found.x + found.width > 1236, 'it covers the bar from side to side');
+  assert.ok(found.y < 948 && found.y + found.height >= 1020, 'and from its top edge to the taskbar');
+  assert.ok(found.width < 700, 'but not the whole width of the screen');
+
+  assert.equal(bar.findSharingBar(frame(() => {}), W, band.top, band.rows, geo), null, 'a plain page has no bar');
+  const rule = frame((set) => {
+    for (let x = 0; x < W; x++) set(x, 960, 200);
+  });
+  assert.equal(bar.findSharingBar(rule, W, band.top, band.rows, geo), null, 'a line across the whole screen is not the bar');
+  const offCentre = frame((set) => {
+    for (let x = 100; x <= 650; x++) set(x, 948, 229);
+  });
+  assert.equal(bar.findSharingBar(offCentre, W, band.top, band.rows, geo), null, 'a box at the side is not the bar');
+});

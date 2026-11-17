@@ -23,7 +23,7 @@ Restricted pages (chrome://, the Chrome Web Store): tab mode is disabled with "C
 
 ## Record a window or screen
 
-As above, but Start opens Chrome's **Choose what to share** dialog (tab, window or entire screen, with "share system audio" where Chrome offers it). Cancelling the dialog cancels quietly. The bar and bubble appear on the tab you started from; they are not drawn on other applications (Loom documents the same limit for its bubble, L1).
+As above, but Start opens Chrome's **Choose what to share** dialog (tab, window or entire screen, with "share system audio" where Chrome offers it). Cancelling the dialog cancels quietly. The bar and bubble appear on the tab you started from; they are not drawn on other applications (Loom documents the same limit for its bubble, L1). Chrome floats its own "is sharing your screen · Stop sharing · Hide" bar at the bottom of the screen; an entire-screen recording paints it out (it is looked for in the picture about twice a second; once it is hidden or dragged away, nothing is painted).
 
 ## Camera only
 

@@ -3,6 +3,7 @@
 // may use only chrome.runtime, so the session snapshot is sent to the service worker to store.
 import { CAMERA_PORT, iceGathered, isCameraRelayMessage, isEngineRequest, senderKind, type ControlAction, type EngineRequest, type StartOptions } from "./messages";
 import { elapsed, reduce, type SessionEvent, type Snapshot } from "./session";
+import { withoutSharingBar } from "./sharing-bar";
 import { deleteSession, dropChunks, getSession, putChunk, putSession, type StoredSession } from "./store";
 
 const COUNTDOWN_MS = 3000;
@@ -23,6 +24,8 @@ let media: {
   micGain: GainNode | null;
   /** Reads the microphone before the mute, so the meter still shows speech while muted. */
   micLevel: AnalyserNode | null;
+  /** Stops painting out Chrome's sharing bar (a whole-screen recording only). */
+  unbar: () => void;
 } | null = null;
 let meter: ReturnType<typeof setInterval> | undefined;
 let recorder: MediaRecorder | null = null;
@@ -112,7 +115,10 @@ async function acquire(request: Extract<EngineRequest, { type: "begin" }>) {
   let context: AudioContext | null = null;
   let micGain: GainNode | null = null;
   let micLevel: AnalyserNode | null = null;
-  const recorded = new MediaStream(video.getVideoTracks());
+  // A whole screen shows Chrome's floating "is sharing your screen" bar; record a copy without it.
+  const screenTrack = opts.mode === "screen" ? video.getVideoTracks()[0] : undefined;
+  const unbarred = screenTrack ? withoutSharingBar(screenTrack, { width: screen.width, height: screen.height, availTop: (screen as Screen & { availTop?: number }).availTop ?? 0, availHeight: screen.availHeight }) : null;
+  const recorded = new MediaStream(unbarred ? [unbarred.track] : video.getVideoTracks());
   if (sourceAudio.length || micTrack) {
     context = new AudioContext();
     const mix = context.createMediaStreamDestination();
@@ -135,7 +141,7 @@ async function acquire(request: Extract<EngineRequest, { type: "begin" }>) {
     recorded.addTrack(mix.stream.getAudioTracks()[0]);
     if (context.state === "suspended") await context.resume().catch(() => {});
   }
-  return { video, microphone, context, recorded, micGain, micLevel };
+  return { video, microphone, context, recorded, micGain, micLevel, unbar: unbarred?.stop ?? (() => {}) };
 }
 
 /** Sends the microphone's level ten times a second to the popup and the page bar's meter frame. */
@@ -157,6 +163,7 @@ function release() {
   clearInterval(meter);
   cancelCount?.();
   if (media) {
+    media.unbar();
     for (const stream of [media.video, media.microphone, media.recorded]) stream?.getTracks().forEach((t) => t.stop());
     if (media.context && media.context.state !== "closed") void media.context.close();
   }
