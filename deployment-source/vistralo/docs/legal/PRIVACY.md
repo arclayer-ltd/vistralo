@@ -42,7 +42,7 @@ We are responsible for your account information and for the records we keep to r
 
 **Share links.** When you share a project, we create a link with an expiry date. Anyone who has the link can watch the finished video or read the visual brief until the link expires or you revoke it. Your other files stay private.
 
-**Technical information.** To keep you signed in, the app stores your sign-in session in your browser. It also remembers display choices, such as the theme and whether the side bar is collapsed. Our hosting providers record basic details of each request to the app, such as your IP address, browser type, the address requested and the time. Our processing server keeps a log of job numbers, timings and error messages, not the content of your recordings.
+**Technical information.** To keep you signed in, the app stores your sign-in session in your browser. It also remembers display choices, such as the theme and whether the side bar is collapsed. Our hosting providers record basic details of each request to the app, such as your IP address, browser type, the address requested and the time. Our processing server keeps a log of job numbers, timings and error messages, not the content of your recordings. An error message can include the address of a website you asked it to read.
 
 **When you write to us.** Your email address and what you write.
 
@@ -99,7 +99,7 @@ We use these providers to run Vistralo. They handle your information only to pro
 
 - **Supabase** (Supabase, Inc., USA): accounts and sign-in, the database and file storage for your projects, and the emails that confirm your address or reset your password. Your data is stored on its servers in Singapore.
 - **Vercel** (Vercel Inc., USA): hosts the web app and the website, and delivers them from servers around the world, close to wherever you are.
-- **BrainStorm Network** (Los Angeles, USA): hosts our processing server, which makes your films and reads websites for website projects. It keeps a working copy of a project's files only while a job is running and deletes it when the job ends.
+- **BrainStorm Network** (Los Angeles, USA): hosts our processing server, which makes your films and reads websites for website projects. It keeps a working copy of a project's files only while a job is running and deletes it when the job ends (or within a day, if the job was cut off).
 - **OpenAI** (OpenAI, L.L.C., USA): writes and speaks the narration, only when you ask for AI narration.
 - **Hostinger**: hosts the hello@arclayer.co mailbox, so it handles the emails you send us.
 
@@ -113,7 +113,7 @@ Vistralo is run from Bangladesh. Your account and projects are stored in Singapo
 
 - **Projects and their files:** deleted automatically 3 months after the project is made, with all its recordings, uploads, frames, scripts, audio and finished films. Editing, re-recording, sharing or moving a project to Trash does not change that date, and a copy of a project keeps the date of the original. You can delete a project sooner by emptying it from Trash. The app shows each project's deletion date.
 - **Backups:** our database provider keeps daily backups for 7 days, so a deleted project can remain in a backup for up to 7 more days before it is gone.
-- **Working copies on the processing server:** only while a job is running.
+- **Working copies on the processing server:** only while a job is running, or up to a day if the job was cut off.
 - **Share links:** until they expire (after 1, 7 or 30 days, as you choose), you revoke them, or the project is deleted.
 - **A deletion record:** when a project is deleted, we keep a short note of it (its ID, dates and how many files were removed), with no names or content.
 - **Your account:** until you ask us to close it. We then delete your account and all your projects within 30 days.
