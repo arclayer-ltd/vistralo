@@ -18,7 +18,8 @@
     "test:web:signup": "node scripts/web-signup-journey.cjs",
     "build:extension": "node scripts/build-extension.cjs",
     "typecheck:extension": "tsc -p extension/tsconfig.json",
-    "test:extension": "node scripts/extension-journey.cjs"
+    "test:extension": "node scripts/extension-journey.cjs",
+    "store:images": "node scripts/extension-store-images.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.99.1",

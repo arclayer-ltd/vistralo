@@ -57,6 +57,7 @@ jobs:
           node --check scripts/web-signup-journey.cjs
           node --check scripts/extension-journey.cjs
           node --check scripts/extension-long-recording.cjs
+          node --check scripts/extension-store-images.cjs
           bash -n deploy/vps-worker-install.sh
 
   web-browser:

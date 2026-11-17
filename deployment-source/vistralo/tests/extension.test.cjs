@@ -172,6 +172,18 @@ test('bubble sizes and meter messages are checked', () => {
   assert.equal(messages.isBackgroundRequest({ to: 'background', type: 'control', action: 'mute' }), true);
 });
 
+test('camera relay messages: only an offer, an answer or an error, with bounded descriptions', () => {
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'v=0', camera: 'default' }), true);
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'v=0', camera: '' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'v=0' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'offer', sdp: 'x'.repeat(20001), camera: 'default' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'answer', sdp: 'v=0' }), true);
+  assert.equal(messages.isCameraRelayMessage({ type: 'answer', sdp: '' }), false);
+  assert.equal(messages.isCameraRelayMessage({ type: 'error' }), true);
+  assert.equal(messages.isCameraRelayMessage({ type: 'stream', track: {} }), false);
+  assert.equal(messages.isCameraRelayMessage(null), false);
+});
+
 const permissions = load('extension/src/permissions.ts');
 // The module runs in its own context, so its arrays are copied before comparing.
 const missing = (...args) => [...permissions.missingPermissions(...args)];

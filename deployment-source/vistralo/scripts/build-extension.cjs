@@ -7,7 +7,7 @@
 const esbuild = require('esbuild');
 const fs = require('node:fs');
 const path = require('node:path');
-const zlib = require('node:zlib');
+const { zip, releaseProblems } = require('./extension-package.cjs');
 
 const root = path.resolve(__dirname, '..');
 const src = path.join(root, 'extension');
@@ -66,62 +66,14 @@ for (const file of ['inter-latin-wght-normal.woff2', 'archivo-latin-wdth-normal.
   fs.copyFileSync(path.join(fonts, file), path.join(out, 'assets', 'fonts', file));
 fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 
-/** A zip of the folder (deflate, fixed dates so the same input gives the same archive). */
-function zip(dir, file) {
-  const files = [];
-  const walk = (d) => {
-    for (const item of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const full = path.join(d, item.name);
-      if (item.isDirectory()) walk(full);
-      else files.push(full);
-    }
-  };
-  walk(dir);
-  const parts = [];
-  const central = [];
-  let offset = 0;
-  const dosTime = 0;
-  const dosDate = ((2026 - 1980) << 9) | (1 << 5) | 1;
-  for (const full of files) {
-    const name = Buffer.from(path.relative(dir, full).split(path.sep).join('/'));
-    const data = fs.readFileSync(full);
-    const packed = zlib.deflateRawSync(data, { level: 9 });
-    const crc = zlib.crc32(data);
-    const local = Buffer.alloc(30);
-    local.writeUInt32LE(0x04034b50, 0);
-    local.writeUInt16LE(20, 4);
-    local.writeUInt16LE(8, 8);
-    local.writeUInt16LE(dosTime, 10);
-    local.writeUInt16LE(dosDate, 12);
-    local.writeUInt32LE(crc, 14);
-    local.writeUInt32LE(packed.length, 18);
-    local.writeUInt32LE(data.length, 22);
-    local.writeUInt16LE(name.length, 26);
-    parts.push(local, name, packed);
-    const entry = Buffer.alloc(46);
-    entry.writeUInt32LE(0x02014b50, 0);
-    entry.writeUInt16LE(20, 4);
-    entry.writeUInt16LE(20, 6);
-    entry.writeUInt16LE(8, 10);
-    entry.writeUInt16LE(dosTime, 12);
-    entry.writeUInt16LE(dosDate, 14);
-    entry.writeUInt32LE(crc, 16);
-    entry.writeUInt32LE(packed.length, 20);
-    entry.writeUInt32LE(data.length, 24);
-    entry.writeUInt16LE(name.length, 28);
-    entry.writeUInt32LE(offset, 42);
-    central.push(entry, name);
-    offset += local.length + name.length + packed.length;
-  }
-  const centralSize = central.reduce((n, b) => n + b.length, 0);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(files.length, 8);
-  end.writeUInt16LE(files.length, 10);
-  end.writeUInt32LE(centralSize, 12);
-  end.writeUInt32LE(offset, 16);
-  fs.writeFileSync(file, Buffer.concat([...parts, ...central, end]));
-}
 const archive = path.join(root, 'extension-dist', `vistralo-extension-${manifest.version}-${target}.zip`);
 zip(out, archive);
+// A release zip is checked before anyone can upload it: see scripts/extension-package.cjs.
+if (target === 'release') {
+  const problems = releaseProblems(archive, { expectedVersion: manifest.version });
+  if (problems.length) {
+    fs.rmSync(archive, { force: true });
+    throw new Error(`The release zip failed its check and was removed:\n- ${problems.join('\n- ')}`);
+  }
+}
 console.log(`Built ${path.relative(root, out)} and ${path.relative(root, archive)} (saves to ${appOrigin}${demo ? ', demo' : ''})`);

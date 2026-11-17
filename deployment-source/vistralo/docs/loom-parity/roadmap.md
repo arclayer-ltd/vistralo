@@ -12,7 +12,7 @@ Feature IDs are in `feature-matrix.csv`. Chrome is delivered for review before a
 | C3 Screenshots | Visible tab and area capture (`captureVisibleTab`, device pixels); editor with text, arrow, rectangle, blur that changes pixels, crop; local save; attach to a project | Not started |
 | C4 Product integration | Upload while recording (resumable session per take); progress and retry in the extension; share link right after stop; screenshot links | Not started. Today saving goes through the app's existing upload |
 | C5 Website walkthrough | Opt-in event capture (navigation, clicks, scroll, viewport, sanitised labels) aligned to the take's clock; step review, rename, reorder, remove, redact; adapter into the worker's script pipeline | Not started |
-| C6 Remaining Chrome features | Drawing, click highlighting, switching bubble on and off mid-take, quality choices; packaging and store material | Not started |
+| C6 Remaining Chrome features | Drawing, click highlighting, switching bubble on and off mid-take, quality choices; packaging and store material | Store packaging ready for the owner to submit (`extension/store/SUBMIT.md`): checked release zip, listing, images, privacy section. The features are not started |
 
 ## Later platforms (separate phases, each with fresh research)
 

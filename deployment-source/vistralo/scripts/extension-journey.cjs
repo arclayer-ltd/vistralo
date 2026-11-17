@@ -23,7 +23,7 @@ const { serve } = require('./static-server.cjs');
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'extension-dist', 'dev');
 const evidence = path.resolve(process.env.VISTRALO_EVIDENCE || path.join(root, 'evidence', 'extension'));
-const APP_PORT = 4387;
+const APP_PORT = Number(process.env.VISTRALO_JOURNEY_PORT) || 4387;
 const extensionId = JSON.parse(fs.readFileSync(path.join(root, 'extension', 'dev-key.json'), 'utf8')).id;
 const ACTIVE = ['requesting', 'countdown', 'recording', 'paused', 'stopping', 'finalizing'];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -75,6 +75,23 @@ function peakDb(file) {
 function peakDbBetween(file, start, seconds) {
   const r = require('node:child_process').spawnSync('ffmpeg', ['-hide_banner', '-ss', String(start), '-t', String(seconds), '-i', file, '-vn', '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' });
   return Number((/max_volume: (-?[\d.]+) dB/.exec(r.stderr || '') || [])[1]);
+}
+
+/**
+ * Mean brightness (0-255) of the page's bottom-left corner, where the page bar sits, in one video
+ * frame (seek to `at` seconds) or in a screenshot. The fixture page is near white there; the bar is
+ * dark. A tab's video is letterboxed to its own frame size, so the page (height/width `aspect`) is
+ * cut out of the middle first.
+ */
+function cornerLuma(file, aspect, at) {
+  const seek = at === undefined ? [] : ['-ss', String(at)];
+  const page = `crop=w=min(iw\\,ih/${aspect}):h=min(ih\\,iw*${aspect})`;
+  const r = require('node:child_process').spawnSync(
+    'ffmpeg',
+    ['-v', 'error', ...seek, '-i', file, '-frames:v', '1', '-vf', `${page},crop=iw*0.2:ih*0.04:iw*0.03:ih*0.935,scale=1:1:flags=area`, '-f', 'rawvideo', '-pix_fmt', 'gray', '-'],
+    { maxBuffer: 1024 },
+  );
+  return r.stdout && r.stdout.length === 1 ? r.stdout[0] : NaN;
 }
 
 /** Playing length found by decoding: MediaRecorder's WebM carries no duration in its header. */
@@ -241,7 +258,9 @@ async function main() {
   const site = await new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       res.setHeader('content-type', 'text/html');
-      res.end(fixture(req.url === '/two' ? 'Fixture shop, page two' : 'Fixture shop'));
+      // A site that forbids the camera in every frame on its pages, as app.vistralo.com does.
+      if (req.url === '/no-camera') res.setHeader('Permissions-Policy', 'camera=()');
+      res.end(fixture(req.url === '/two' ? 'Fixture shop, page two' : req.url === '/no-camera' ? 'Fixture shop without the camera' : 'Fixture shop'));
     });
     server.listen(0, '127.0.0.1', () => resolve({ origin: `http://127.0.0.1:${server.address().port}`, close: () => server.close() }));
   });
@@ -271,12 +290,21 @@ async function main() {
         const wallStart = Date.now();
         await t.page.click('#beep');
         await wait(2500);
-        await t.page.screenshot({ path: path.join(evidence, 'tab-recording-controls.png') });
+        const recordingShot = path.join(evidence, 'tab-recording-no-bar.png');
+        await t.page.screenshot({ path: recordingShot });
         await t.send({ to: 'background', type: 'control', action: 'pause' });
         const pauseAsked = Date.now();
         s = await t.until((x) => x.phase === 'paused', 5000, 'paused');
         const held = s.elapsedMs;
         await wait(1500);
+        // The tab records everything it draws, so the page bar shows only while paused.
+        const pausedShot = path.join(evidence, 'tab-paused-bar.png');
+        await t.page.screenshot({ path: pausedShot });
+        const viewport = t.page.viewportSize();
+        const aspect = (viewport.height / viewport.width).toFixed(4);
+        const [recordingCorner, pausedCorner] = [cornerLuma(recordingShot, aspect), cornerLuma(pausedShot, aspect)];
+        assert.ok(recordingCorner > 225, `no page bar on the tab while it records (corner brightness ${recordingCorner})`);
+        assert.ok(pausedCorner < 100, `the page bar shows while paused (corner ${pausedCorner}, recording ${recordingCorner})`);
         assert.equal((await t.snapshot()).elapsedMs, held, 'the clock holds while paused');
         const resumeAsked = Date.now();
         await t.send({ to: 'background', type: 'control', action: 'resume' });
@@ -304,6 +332,14 @@ async function main() {
         fs.writeFileSync(path.join(evidence, 'tab.ffprobe.json'), JSON.stringify(probe, null, 2));
         assert.deepEqual((probe.streams || []).map((x) => x.codec_type).sort(), ['audio', 'video'], JSON.stringify(probe));
         assert.ok(decodes(file), 'the whole file decodes');
+        // Every quarter second of the take, the moments around the pause included: no page bar. The
+        // sound can run a little past the last frame, so seeks that find no frame are left out.
+        const length = durationOf(file);
+        const corners = [];
+        for (let at = 0.1; at < length - 0.1; at += 0.25) corners.push([Number(at.toFixed(2)), cornerLuma(file, aspect, at)]);
+        const seen = corners.filter(([, luma]) => !Number.isNaN(luma));
+        const barred = seen.filter(([, luma]) => !(luma > 225));
+        assert.ok(seen.length >= 16 && barred.length === 0, `the page bar is not in the video; dark corners at ${JSON.stringify(barred)}`);
         const peak = peakDb(file);
         // Headless Chrome captures a tab's sound as silence, so the tone is checked in a visible browser only.
         if (process.env.VISTRALO_HEADFUL === '1') assert.ok(peak > -40, `the tab's tone is in the recording (peak ${peak} dB)`);
@@ -475,6 +511,30 @@ async function main() {
         await t.send({ to: 'background', type: 'control', action: 'cancel' });
         await t.until((x) => x.phase === 'cancelled', 10000, 'cancelled');
         assert.ok(frames.some((u) => u.startsWith(`chrome-extension://${extensionId}/camera.html`)), `the bubble frame is on the page (${frames.join(', ')})`);
+      });
+
+      await step('camera bubble on a page that forbids the camera: the engine streams it in', async () => {
+        await t.idle();
+        await t.page.goto(site.origin + '/no-camera');
+        const tabId = await t.tabOf(t.page);
+        const options = t.options({ mode: 'screen', camera: 'default', bubble: true, countdown: false });
+        await t.control.evaluate((o) => chrome.storage.local.set({ options: o }), options);
+        assert.deepEqual(await t.send({ to: 'background', type: 'start', tabId, options }), { ok: true });
+        await t.until((x) => x && x.phase === 'recording', 20000, 'recording');
+        let bubbleFrame;
+        for (let i = 0; i < 50 && !bubbleFrame; i++) {
+          bubbleFrame = t.page.frames().find((f) => f.url().includes('/camera.html'));
+          if (!bubbleFrame) await wait(200);
+        }
+        assert.ok(bubbleFrame, 'the bubble frame is on the page');
+        assert.equal(await bubbleFrame.evaluate(() => document.featurePolicy.allowsFeature('camera')), false, 'the page really forbids the camera here');
+        await bubbleFrame.waitForFunction(() => document.querySelector('video').videoWidth > 0, null, { timeout: 15000 });
+        assert.equal(await bubbleFrame.evaluate(() => document.body.classList.contains('is-off')), false, 'the bubble shows the camera');
+        await wait(1500);
+        await t.page.screenshot({ path: path.join(evidence, 'camera-bubble-forbidden-page.png') });
+        await t.send({ to: 'background', type: 'control', action: 'cancel' });
+        await t.until((x) => x.phase === 'cancelled', 10000, 'cancelled');
+        await t.page.goto(site.origin + '/');
       });
 
       await step('popup and setup page render', async () => {

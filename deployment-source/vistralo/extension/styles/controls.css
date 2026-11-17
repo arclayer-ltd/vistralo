@@ -103,6 +103,10 @@ button:focus-visible {
   margin: var(--space-0);
   font-size: var(--font-body);
 }
+.count .tab-hint {
+  max-width: var(--toast-width);
+  text-align: center;
+}
 .bubble {
   left: var(--space-4);
   bottom: var(--dock-reserve);
