@@ -124,6 +124,8 @@ test('engine requests must carry the session they are for', () => {
   assert.equal(messages.isEngineRequest({ ...begin, streamId: '' }), false);
   assert.equal(messages.isEngineRequest({ to: 'engine', type: 'control', sessionId: ID, action: 'pause' }), true);
   assert.equal(messages.isEngineRequest({ to: 'engine', type: 'control', action: 'pause' }), false);
+  assert.equal(messages.isEngineRequest({ to: 'engine', type: 'camera-ready', sessionId: ID }), true);
+  assert.equal(messages.isEngineRequest({ to: 'engine', type: 'camera-ready' }), false);
 });
 
 test('senders: only this extension counts, and content scripts are told apart from its pages', () => {

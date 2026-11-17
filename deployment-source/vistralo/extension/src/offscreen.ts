@@ -229,6 +229,9 @@ async function recordTake() {
   const countdown = options?.countdown ? COUNTDOWN_MS : 0;
   if (snapshot.phase === "requesting" && countdown) await apply({ type: "countdown", at: now(), countdownMs: countdown });
   if (!(await countIn(snapshot.countdownEndsAt ? Math.max(0, snapshot.countdownEndsAt - now()) : 0))) return;
+  // The bubble is part of the recorded page; without this the take opens on an empty circle
+  // while the camera warms up.
+  if (snapshot.camera && options?.mode !== "camera" && options?.bubble) await bubblePicture(BUBBLE_WAIT_MS);
   if (!media || !snapshot || !["countdown", "requesting"].includes(snapshot.phase)) return;
   const type = recorderMime(media.recorded.getAudioTracks().length > 0, (t) => MediaRecorder.isTypeSupported(t));
   const capture = new MediaRecorder(media.recorded, {
@@ -384,8 +387,27 @@ function control(action: ControlAction) {
   }
 }
 
+/** How long a take waits for the camera bubble's first picture before recording anyway. */
+const BUBBLE_WAIT_MS = 6000;
+let bubbleShowing = false;
+let bubbleWaiter: (() => void) | null = null;
+
+/** Resolves once the camera bubble has reported a picture, or after `ms`. */
+function bubblePicture(ms: number) {
+  if (bubbleShowing) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(() => bubbleWaiter?.(), ms);
+    bubbleWaiter = () => {
+      clearTimeout(timer);
+      bubbleWaiter = null;
+      resolve();
+    };
+  });
+}
+
 async function begin(request: Extract<EngineRequest, { type: "begin" }>) {
   if (media || recorder) return;
+  bubbleShowing = false;
   snapshot = request.snapshot;
   options = request.options;
   try {
@@ -435,7 +457,11 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   if (!isEngineRequest(message)) return false;
   if (senderKind(sender, chrome.runtime.id, OWN_ORIGIN) !== "extension") return false;
   if (message.type === "begin") void begin(message);
-  else if (snapshot && message.sessionId === snapshot.id) control(message.action);
+  else if (!snapshot || message.sessionId !== snapshot.id) return false;
+  else if (message.type === "camera-ready") {
+    bubbleShowing = true;
+    bubbleWaiter?.();
+  } else control(message.action);
   return false;
 });
 

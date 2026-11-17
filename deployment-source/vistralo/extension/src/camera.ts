@@ -45,6 +45,19 @@ function relayed() {
   });
 }
 
+/** Tells the engine the bubble is ready to be recorded: it shows a picture, or the camera is off. */
+async function ready() {
+  const { session } = await chrome.storage.session.get("session").catch(() => ({ session: null }));
+  const id = (session as { id?: unknown } | null)?.id;
+  if (typeof id === "string") void chrome.runtime.sendMessage({ to: "engine", type: "camera-ready", sessionId: id }).catch(() => {});
+}
+
+function whenPainted() {
+  const frames = video as HTMLVideoElement & { requestVideoFrameCallback?: (callback: () => void) => number };
+  if (frames.requestVideoFrameCallback) frames.requestVideoFrameCallback(() => void ready());
+  else video.addEventListener("playing", () => void ready(), { once: true });
+}
+
 void (async () => {
   try {
     let stream: MediaStream;
@@ -57,11 +70,13 @@ void (async () => {
         stream = await relayed();
       }
     }
+    whenPainted();
     video.srcObject = stream;
     await video.play().catch(() => {});
     // The bubble is removed with its frame; stop the camera with it.
     window.addEventListener("pagehide", () => stream.getTracks().forEach((t) => t.stop()));
   } catch {
     document.body.classList.add("is-off");
+    void ready();
   }
 })();

@@ -13,7 +13,7 @@ If someone skips this, the popup shows "Chrome needs your permission…" with a 
 ## Record a tab
 
 1. Click Vistralo on the page to record. The popup shows: **This tab** · Window or screen · Camera only; Microphone; Camera; show my camera in a bubble; record the tab's sound; count down from 3; open in Vistralo when I stop.
-2. **Start recording.** The popup closes. A 3-second count-in covers the page ("Esc to cancel"). The toolbar badge shows "…", then "REC".
+2. **Start recording.** The popup closes. A 3-second count-in covers the page ("Esc to cancel"). The toolbar badge shows "…", then "REC". With the bubble on, recording waits for the camera's first picture (up to 6 seconds), so the take never opens on an empty circle.
 3. Recording: a bar at the bottom left of the page shows a red dot, the clock, the microphone meter and mute (when recording the microphone), the bubble size (when the bubble is on), pause, start over, discard, **Stop** and hide. The bubble (if on) sits above it and can be dragged. The tab's sound keeps playing. The bar and bubble are part of the recorded pixels; hide the bar to leave it out.
 4. Browsing on: links and reloads in the tab do not stop the recording. On another site the bar is drawn again only with "Keep the controls on every site" ticked (Chrome asks once); the popup and shortcuts always work.
 5. **Stop** (bar, popup, Alt+Shift+V, or Chrome's "Stop sharing"; closing the tab also stops and keeps the recording).

@@ -53,7 +53,9 @@ export type EngineRequest =
       options: StartOptions;
       snapshot: Snapshot;
     }
-  | { to: "engine"; type: "control"; sessionId: string; action: ControlAction };
+  | { to: "engine"; type: "control"; sessionId: string; action: ControlAction }
+  /** From the camera bubble: it shows a picture (or never will), so recording can begin. */
+  | { to: "engine"; type: "camera-ready"; sessionId: string };
 
 const MODES: readonly Mode[] = ["tab", "screen", "camera"];
 const PHASES: readonly Phase[] = ["idle", "requesting", "countdown", "recording", "paused", "stopping", "finalizing", "ready", "cancelled", "failed"];
@@ -139,6 +141,8 @@ export function isEngineRequest(v: unknown): v is EngineRequest {
       );
     case "control":
       return ACTIONS.includes(v.action as ControlAction);
+    case "camera-ready":
+      return true;
     default:
       return false;
   }
