@@ -1,5 +1,5 @@
 import { CloudAdapter } from "./cloud";
-import { walkthroughScriptEdit } from "./features/flow-utils";
+import { walkthroughScriptEdit, namingData, renamed } from "./features/flow-utils";
 import type {
   AppMode,
   WorkspaceAdapter,
@@ -455,7 +455,7 @@ class DemoAdapter implements WorkspaceAdapter {
         updated: now(),
         eventAt: now(),
         eventLabel: "Edited",
-        data: { demo: true, fictional: false },
+        data: { demo: true, fictional: false, ...namingData(input) },
       };
       store.projects.unshift(project);
       return project;
@@ -475,6 +475,7 @@ class DemoAdapter implements WorkspaceAdapter {
         store.projects.filter((p) => p.pinned && !p.trashed).length >= 5
       )
         throw new Error("You can pin up to five projects.");
+      project.data = renamed(project, patch);
       Object.assign(project, patch);
       if (Object.keys(patch).some((key) => key !== "lastOpened"))
         Object.assign(project, {
@@ -496,6 +497,7 @@ class DemoAdapter implements WorkspaceAdapter {
         ...clone(original),
         id: `demo-${uuid()}`,
         name: `${original.name.slice(0, 113)} (copy)`,
+        data: { ...clone(original.data), autoName: false },
         access: "private" as const,
         collaborators: [],
         pinned: false,

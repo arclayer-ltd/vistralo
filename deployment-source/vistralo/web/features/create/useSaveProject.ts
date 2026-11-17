@@ -17,6 +17,8 @@ interface SaveOptions {
   adapter: WorkspaceAdapter;
   name: string;
   url: string;
+  /** The recorded tab's or window's title, when the browser gave one. */
+  sharedTitle?: string;
   file: File | null;
   shots: File[];
   mobile: boolean;
@@ -40,6 +42,7 @@ export function useSaveProject({
   adapter,
   name,
   url,
+  sharedTitle,
   file,
   shots,
   mobile,
@@ -99,16 +102,27 @@ export function useSaveProject({
         if (!media) throw new Error("Choose or record a video first.");
         validateVideo(media, adapter.mode === "cloud");
       }
+      // A site typed only to open on start still says what was recorded, so it names the take.
+      let siteForName = sourceUrl;
+      if (!siteForName && url.trim())
+        try {
+          siteForName = publicWebsite(url);
+        } catch {
+          /* Not a public address: it does not name anything. */
+        }
+      const typedName = name.trim().slice(0, 120);
+      const fileName = screenshots ? undefined : media?.name;
       const projectName =
-        name.trim().slice(0, 120) ||
+        typedName ||
         automaticName({
           flow,
           source,
-          url: sourceUrl,
-          fileName: media?.name,
+          url: siteForName,
+          title: source === "screen" ? sharedTitle : undefined,
+          fileName,
+          shotNames: screenshots ? shots.map((shot) => shot.name) : [],
           shots: shots.length,
           spoken,
-          locale: localStorage.getItem("vistralo-locale") || undefined,
         });
       const project =
         created.current ??
@@ -117,6 +131,10 @@ export function useSaveProject({
           source,
           type: source === "web" ? "brief" : "walkthrough",
           url: sourceUrl,
+          // Only a name Vistralo chose may later be replaced by a better one, such as the first screen of the script.
+          autoName: !typedName,
+          ...(source === "screen" && sharedTitle ? { pageTitle: sharedTitle.slice(0, 300) } : {}),
+          ...(fileName && source === "upload" ? { sourceName: fileName.slice(0, 300) } : {}),
         }));
       created.current = project;
       if (source === "web") {

@@ -293,7 +293,7 @@ async function main() {
     const site = page.getByRole('dialog', {name:'Analyze a website', exact:true});
     await site.getByLabel(/Website URL/).fill('example.com');
     await site.getByRole('button', {name:'Analyze website', exact:true}).click();
-    await page.getByRole('heading', {name:'example.com design review', level:1, exact:true}).waitFor();
+    await page.getByRole('heading', {name:'example.com', level:1, exact:true}).waitFor();
     checks.push('Analyze a website accepts a bare domain');
 
     // A large workspace: 3,000 generated projects on top of the samples. One page of frames is ever on screen.
@@ -346,6 +346,8 @@ async function main() {
         setInterval(draw, 100);
         const stream = canvas.captureStream(15), track = stream.getVideoTracks()[0], settings = track.getSettings.bind(track);
         track.getSettings = () => ({...settings(), displaySurface:'browser', width:640, height:360});
+        // Browsers that name what was shared (Firefox, Safari) put the window's title in the label.
+        Object.defineProperty(track, 'label', {value:'(2) Pricing – Acme Storage - Google Chrome'});
         return stream;
       };
     });
@@ -411,9 +413,9 @@ async function main() {
     const saved = take.getByRole('region', {name:'Your recording is saved', exact:true});
     await saved.waitFor({timeout:30000});
     assert.match(new URL(take.url()).hash, /^#demo\/project\//, 'Stopping lands on the recording\'s own page');
-    // The recording names itself by what it is and when, not by a raw timestamp.
+    // The recording names itself by what was recorded (the shared tab's title, tidied), not by a date or a raw timestamp.
     const takeName = await take.getByRole('heading', {level:1}).innerText();
-    assert.match(takeName, /^Walkthrough, /);
+    assert.equal(takeName, 'Pricing – Acme Storage');
     assert.equal(/\dT\d\d|Z$/.test(takeName), false, takeName);
     assert.equal(await take.locator('.rail').getByRole('button', {name:takeName, exact:true}).count(), 1, 'The rail lists it under the same name');
     assert.equal(await take.title(), restingTitle, 'The tab title is put back');

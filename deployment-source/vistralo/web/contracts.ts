@@ -81,6 +81,12 @@ export interface CreateProjectInput {
   source: ProjectSource;
   url?: string;
   type?: ProjectType;
+  /** True when Vistralo chose the name; saved as data.autoName, so a better one can replace it later. */
+  autoName?: boolean;
+  /** The recorded tab's or window's title, as the browser gave it (data.pageTitle). */
+  pageTitle?: string;
+  /** The uploaded file's own name (data.sourceName). */
+  sourceName?: string;
 }
 export type ProjectPatch = Partial<
   Pick<

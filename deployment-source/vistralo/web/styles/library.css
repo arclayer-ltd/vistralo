@@ -248,7 +248,15 @@
   line-height: var(--line-caption);
   text-align: center;
 }
+.frame-blank .source-favicon {
+  inline-size: var(--icon-frame);
+  block-size: var(--icon-frame);
+}
 .frame-host {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   max-inline-size: 100%;
   font-family: var(--font-display);
   font-stretch: var(--stretch-display);
@@ -258,7 +266,22 @@
   color: var(--fg-1);
   overflow-wrap: anywhere;
 }
-/* A failed frame carries the editor's reject mark: one stroke from corner to corner. */
+/* A failed frame carries the editor's reject mark: one stroke from corner to corner, drawn
+   over its picture when it has one, so the project stays recognisable. */
+.thumbnail.is-rejected.has-image::after {
+  content: "";
+  position: absolute;
+  inset: var(--frame-edge);
+  border-radius: var(--frame-inner-radius);
+  pointer-events: none;
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - var(--border-width)),
+    var(--danger-fg) calc(50% - var(--border-width)),
+    var(--danger-fg) calc(50% + var(--border-width)),
+    transparent calc(50% + var(--border-width))
+  );
+}
 .thumbnail.is-rejected .frame-blank {
   background-image: linear-gradient(
     to top right,
@@ -268,6 +291,7 @@
     transparent calc(50% + var(--border-width))
   );
 }
+.thumbnail.is-rejected .frame-blank > strong,
 .thumbnail.is-rejected .frame-blank > span {
   padding-inline: var(--space-2);
   background: var(--frame-blank);
@@ -546,6 +570,16 @@
   inline-size: var(--control-small);
   block-size: var(--control-small);
 }
+/* Where the project came from and the exact time it was made: tells two alike apart. */
+.card-subtitle {
+  overflow: hidden;
+  margin: 0;
+  font-size: var(--font-caption);
+  line-height: var(--line-caption);
+  color: var(--fg-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .card-detail,
 .error-reason {
   display: -webkit-box;
@@ -783,7 +817,8 @@
   .thumbnail {
     border: var(--border-width) solid CanvasText;
   }
-  .thumbnail.is-rejected .frame-blank {
+  .thumbnail.is-rejected .frame-blank,
+  .thumbnail.is-rejected.has-image::after {
     background-image: none;
   }
 }

@@ -1,3 +1,4 @@
+import { chooseFrame, lumaStats, posterTimes, rgbaLuma, usableFrame, type FrameSample } from "../src/project-labels.cjs";
 const POSTER_WIDTH = 960;
 const SAMPLE_WIDTH = 32;
 const SAMPLE_HEIGHT = 18;
@@ -42,27 +43,15 @@ async function knownDuration(video: HTMLVideoElement) {
   return Number.isFinite(video.duration) ? video.duration : 0;
 }
 
-// Opening screens are often black or a single flat colour while a tab is picked.
-function looksBlank(video: HTMLVideoElement) {
+// Opening screens are often black, a count-in or one flat colour while a tab is picked.
+function sample(video: HTMLVideoElement) {
   const canvas = document.createElement("canvas");
   canvas.width = SAMPLE_WIDTH;
   canvas.height = SAMPLE_HEIGHT;
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return false;
+  if (!context) return null;
   context.drawImage(video, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
-  const pixels = context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data;
-  let sum = 0;
-  let squares = 0;
-  const count = pixels.length / 4;
-  for (let i = 0; i < pixels.length; i += 4) {
-    const luma =
-      0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2];
-    sum += luma;
-    squares += luma * luma;
-  }
-  const mean = sum / count;
-  const spread = Math.sqrt(Math.max(0, squares / count - mean * mean));
-  return mean < 12 || spread < 6;
+  return lumaStats(rgbaLuma(context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data));
 }
 
 function encode(canvas: HTMLCanvasElement, type: string, quality: number) {
@@ -128,17 +117,18 @@ export async function posterFrame(source: Blob | string): Promise<Blob> {
     if (!video.videoWidth || !video.videoHeight)
       throw new Error("The recording has no picture.");
     const duration = await knownDuration(video);
-    const candidates = duration
-      ? [
-          Math.min(Math.max(duration * 0.08, 0.5), 6),
-          Math.min(duration * 0.3, 30),
-          duration * 0.5,
-        ]
-      : [0.5];
-    for (const [index, time] of candidates.entries()) {
-      await seek(video, Math.min(time, Math.max(duration - 0.1, 0)));
-      if (index === candidates.length - 1 || !looksBlank(video)) break;
+    // Try from a fifth of the way in and stop at the first frame with a picture on it; when
+    // every one is blank, use the one with the most on it.
+    const samples: FrameSample[] = [];
+    for (const time of posterTimes(duration)) {
+      await seek(video, time);
+      const stats = sample(video);
+      if (!stats) break;
+      samples.push({ time, ...stats });
+      if (usableFrame(stats)) break;
     }
+    const chosen = chooseFrame(samples);
+    if (chosen) await seek(video, chosen.time);
     const width = Math.min(POSTER_WIDTH, video.videoWidth);
     const height = Math.round((width * video.videoHeight) / video.videoWidth);
     const canvas = document.createElement("canvas");

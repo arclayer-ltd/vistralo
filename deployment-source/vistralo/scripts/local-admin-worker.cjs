@@ -14,6 +14,7 @@ const { readBuild, matchViewports, writeBrief, publicUrl, viewportFor } = requir
 const { KEY_ID, loadKeyPair, exportPublicKey, decrypt } = require('./worker-secrets.cjs');
 const { loadEntitlement, loadPlan, checkQuota, checkDuration } = require('../src/entitlements.cjs');
 const { includedPlans, includedKeys, chooseKeys } = require('../src/included-ai.cjs');
+const { improvedName, storedStills } = require('../src/project-labels.cjs');
 
 // The analysis returns a full brief; narration is the part meant to be spoken.
 function narrationFrom(markdown) {
@@ -688,7 +689,17 @@ async function start() {
         const latest = unwrap(await db.from('vistralo_projects').select('document,updated_at').eq('id', job.project_id).single());
         assert(!latest.document.trashed, 'Project moved to Trash during processing');
         const at = new Date().toISOString();
-        const saved = unwrap(await db.from('vistralo_projects').update({ document: { ...latest.document, ...changes, status: changes.status || (job.kind === 'probe' ? 'draft' : 'ready'), eventAt: at, error: null }, updated_at: at }).eq('id', job.project_id).eq('updated_at', latest.updated_at).select('id'));
+        const document = { ...latest.document, ...changes, status: changes.status || (job.kind === 'probe' ? 'draft' : 'ready'), eventAt: at, error: null };
+        // A name Vistralo chose gives way to a better one from what the job found (the first screen of
+        // its script); a name the owner typed is never touched. A project with no picture takes a
+        // still it now holds: a website's first evidence frame, or a screen from the script.
+        const better = improvedName(document);
+        if (better) document.name = better;
+        if (!document.thumbnail) {
+          const [still] = storedStills({ ...document, id: job.project_id });
+          if (still && document.data.files && document.data.files[still]) document.thumbnail = still;
+        }
+        const saved = unwrap(await db.from('vistralo_projects').update({ document, updated_at: at }).eq('id', job.project_id).eq('updated_at', latest.updated_at).select('id'));
         assert(saved.length === 1, 'Project changed during output save');
         unwrap(await db.from('vistralo_jobs').update({ state: 'ready', finished_at: at, progress: {} }).eq('id', job.id));
         console.log('Finished', job.id);

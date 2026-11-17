@@ -18,25 +18,38 @@ const {stalled, span, projectTitle} = load('utils.ts');
 const now = new Date(2026, 9, 13, 18, 10);
 const named = options => automaticName({now, locale:'en-GB', ...options});
 
-test('a recording is named for what it is and when it was made, never by a raw timestamp', () => {
-  const walkthrough = named({flow:'ai-walkthrough', source:'screen'});
-  assert.match(walkthrough, /^Walkthrough, 13 Oct, \d{1,2}:10/);
-  assert.equal(/\dT\d|Z$|-\d{3}/.test(walkthrough), false);
-  assert.match(named({flow:'talk-through', source:'screen', spoken:true}), /^Talk-through, 13 Oct/);
-  assert.match(named({flow:'ai-walkthrough', source:'screen', spoken:true}), /^Talk-through,/, 'a take with the person\'s voice is a talk-through');
-  assert.match(named({flow:'section', source:'screen'}), /^Section, 13 Oct/);
-  assert.equal(named({flow:'ai-walkthrough', source:'screen', url:'https://www.mercury.com/pricing'}), 'mercury.com walkthrough', 'a site, when one was given, says more than the time');
+test('a recording is named for what was recorded, never by the date or a raw timestamp', () => {
+  // The recorded tab's title, tidied: no browser name, no unread count.
+  assert.equal(named({flow:'talk-through', source:'screen', spoken:true, title:'(3) Pricing – Mercury - Google Chrome'}), 'Pricing – Mercury');
+  assert.equal(named({flow:'ai-walkthrough', source:'screen', title:'Dashboard | Linear — Mozilla Firefox'}), 'Dashboard | Linear');
+  // Chrome names a shared surface by its id; that says nothing, so the site or the kind is used instead.
+  assert.equal(named({flow:'ai-walkthrough', source:'screen', title:'web-contents-media-stream://1234:5', url:'https://www.mercury.com/pricing'}), 'mercury.com/pricing');
+  assert.equal(named({flow:'section', source:'screen', title:'screen:0:0'}), 'Untitled section');
+  assert.equal(named({flow:'talk-through', source:'screen', title:'window:2210:0', spoken:true}), 'Untitled talk-through');
+  assert.equal(named({flow:'ai-walkthrough', source:'screen', title:'New Tab'}), 'Untitled walkthrough');
+  // A tab with no title shows its address, and is named by its site.
+  assert.equal(named({flow:'ai-walkthrough', source:'screen', title:'app.example.com/settings'}), 'app.example.com/settings');
+  for (const name of [named({flow:'ai-walkthrough', source:'screen'}), named({flow:'talk-through', source:'screen', spoken:true})])
+    assert.equal(/\d{1,2}[:.]\d{2}|Oct|\dT\d|Z$/.test(name), false, name);
 });
 
 test('a website, a set of screenshots and an uploaded file each get a name that says what they are', () => {
-  assert.equal(named({flow:'website', source:'web', url:'https://www.example.com/'}), 'example.com design review');
-  assert.match(named({flow:'narrate-screenshots', source:'upload', shots:6, fileName:'screens.webm'}), /^6 screenshots, 13 Oct/);
-  assert.match(named({flow:'narrate-screenshots', source:'upload', shots:1}), /^1 screenshot, /);
+  assert.equal(named({flow:'website', source:'web', url:'https://www.example.com/'}), 'example.com');
+  assert.equal(named({flow:'website', source:'web', url:'https://shop.example.com/collections?x=1'}), 'shop.example.com/collections');
+  // A path part that is an id or a locale is left out.
+  assert.equal(named({flow:'website', source:'web', url:'https://example.com/en-gb/'}), 'example.com');
+  assert.equal(named({flow:'website', source:'web', url:'https://example.com/3f2a9c1e-77aa-4c1b-9d55-0c2f3b4a5d6e'}), 'example.com');
+  assert.equal(named({flow:'narrate-screenshots', source:'upload', shots:6, shotNames:['checkout-step-1.png', 'b.png']}), 'checkout step 1 and 5 more');
+  assert.equal(named({flow:'narrate-screenshots', source:'upload', shots:6, shotNames:['Screenshot 2026-10-08 at 09.12.44.png']}), '6 screenshots');
+  assert.equal(named({flow:'narrate-screenshots', source:'upload', shots:1}), '1 screenshot');
+  assert.equal(named({flow:'narrate-screenshots', source:'upload', shots:2, url:'https://acme.test/'}), 'acme.test, 2 screenshots');
   assert.equal(named({flow:'narrate-video', source:'upload', fileName:'Q3_onboarding-demo_final.mp4'}), 'Q3 onboarding demo final');
-  // A file whose own name says nothing is named by the date.
-  assert.match(named({flow:'narrate-video', source:'upload', fileName:'Screen recording 2026-10-08T08-18-28-831Z.webm'}), /^Video, 13 Oct/);
-  assert.match(named({flow:'narrate-video', source:'upload', fileName:'untitled.mov'}), /^Video, /);
-  assert.equal(named({flow:'narrate-video', source:'upload', fileName:'x'.repeat(200) + '.mp4'}).length, 120);
+  // A file whose own name says nothing is not used.
+  assert.equal(named({flow:'narrate-video', source:'upload', fileName:'Screen recording 2026-10-08T08-18-28-831Z.webm'}), 'Untitled video');
+  assert.equal(named({flow:'narrate-video', source:'upload', fileName:'untitled.mov'}), 'Untitled video');
+  assert.equal(named({flow:'narrate-video', source:'upload', fileName:'IMG_4021.MOV'}), 'Untitled video');
+  assert.equal(named({flow:'narrate-video', source:'upload', fileName:'IMG_4021.MOV', url:'https://acme.test/'}), 'acme.test');
+  assert.ok(named({flow:'narrate-video', source:'upload', fileName:'x'.repeat(200) + '.mp4'}).length <= 120);
 });
 
 test('names saved by the old recorder are still shown readably', () => {

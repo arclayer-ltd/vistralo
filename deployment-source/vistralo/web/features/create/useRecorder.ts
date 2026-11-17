@@ -71,6 +71,8 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
     [microphoneLive, setMicrophoneLive] = useState(false),
     [micLevel, setMicLevel] = useState(0),
     [spoken, setSpoken] = useState(false);
+  // The shared tab's or window's title, when the browser gives one; it names the project.
+  const [sharedTitle, setSharedTitle] = useState("");
   const [requestingCapture, setRequestingCapture] = useState(false);
   const [recording, setRecording] = useState<
     "idle" | "ready" | "countdown" | "recording" | "paused" | "staging" | "staged"
@@ -329,6 +331,7 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
         },
         { once: true },
       );
+      setSharedTitle(chosen.title);
       setDisplay({
         stream: selected,
         surface: chosen.surface,
@@ -600,6 +603,7 @@ export function useRecorder({ flow, url, mounted, setError, setFile, onDiscard }
 
   return {
     recorder,
+    sharedTitle,
     micAnalyser,
     spokenTake,
     autoSave,

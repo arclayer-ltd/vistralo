@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { WorkspaceAdapter, Project, ProjectChunk, ProjectDetail, CreateProjectInput, ProjectPatch, UploadOptions, WorkspaceSettings, ShareLink } from './contracts';
 import { uuid } from './id';
-import { walkthroughScriptEdit } from './features/flow-utils';
+import { walkthroughScriptEdit, namingData, renamed } from './features/flow-utils';
 import { filesToCopy, projectPrefix, remapPaths } from './features/duplicate';
 import { abortIfNeeded, checksum } from './checksum';
 import { posterFrame } from './poster';
@@ -30,9 +30,13 @@ export const SUMMARY_SELECT = ['id','created_at','updated_at',
   ...SUMMARY_VALUES.map(key=>`${key}:document->${key}`),
   'thumbnailVariants:document->data->thumbnailVariants','favicon:document->data->>favicon','faviconUrl:document->data->>faviconUrl',
   'narratedVideo:document->data->>narratedVideo','microphone:document->data->microphone','outputFile:document->data->output->>file',
+  // A website's evidence stills (at most a dozen paths); the first, the top of its page, stands for a brief with no poster.
+  'analysisEvidence:document->data->analysisEvidence',
 ].join(',');
 const text = (value:unknown) => typeof value==='string'&&value ? value : undefined;
 const count = (value:unknown) => typeof value==='number'&&Number.isFinite(value) ? value : undefined;
+// Only a still inside this project's own folder, so a card never signs another project's file.
+const briefStill = (row:any) => {const first=row.type==='brief'&&Array.isArray(row.analysisEvidence)?row.analysisEvidence[0]:undefined;return typeof first==='string'&&first.split('/')[1]===row.id&&!first.includes('..')&&/\.(png|jpe?g|webp)$/i.test(first)?first:undefined;};
 export function projectSummary(row:any):Project {
   return {
     id:row.id,name:text(row.name)||'Untitled project',type:row.type==='brief'?'brief':'walkthrough',
@@ -44,7 +48,7 @@ export function projectSummary(row:any):Project {
     access:['workspace','link'].includes(row.access)?row.access:'private',
     collaborators:Array.isArray(row.collaborators)?row.collaborators:undefined,
     pinned:row.pinned===true,trashed:row.trashed===true,trashedAt:text(row.trashedAt),lastOpened:text(row.lastOpened),folder:text(row.folder),
-    thumbnail:text(row.thumbnail),video:text(row.video),
+    thumbnail:text(row.thumbnail)||briefStill(row),video:text(row.video),
     // summary marks a project read for the library; its data holds only what a card needs.
     data:{summary:true,files:{},thumbnailVariants:Array.isArray(row.thumbnailVariants)?row.thumbnailVariants:undefined,favicon:text(row.favicon),faviconUrl:text(row.faviconUrl),narratedVideo:text(row.narratedVideo),microphone:row.microphone===true,output:text(row.outputFile)?{file:row.outputFile}:null},
   };
@@ -224,7 +228,8 @@ export class CloudAdapter implements WorkspaceAdapter {
     // Attaching a poster is not an edit: keep updated_at so the project does not jump to the top of the list.
     for(let attempt=0;attempt<3;attempt++){
       const latest=attempt?await this.row(id):row;
-      const previous=ownPoster({...latest.document,id})?latest.document.thumbnail:undefined;
+      // Only a drawn poster is replaced; a website still or script frame standing in as the thumbnail stays.
+      const previous=ownPoster({...latest.document,id})&&/\/poster-[^/]+$/.test(latest.document.thumbnail!)?latest.document.thumbnail:undefined;
       const files={...latest.document.data.files};
       if(previous)delete files[previous];
       const next={...latest.document,thumbnail:target,data:{...latest.document.data,files:{...files,[target]:{size:image.size,mime:image.type}}}};
@@ -237,9 +242,9 @@ export class CloudAdapter implements WorkspaceAdapter {
     await required().storage.from('vistralo-media').remove([target]).catch(()=>{});
     throw Error('This project changed in another session. Refresh and try again.');
   }
-  async create(input:CreateProjectInput){const account=await cloudAccount();await this.guard('projects');const id=uuid();const p:Project={id,name:input.name,type:input.type||(input.source==='web'?'brief':'walkthrough'),source:input.source,url:input.url,status:'draft',access:'private',created:now(),updated:now(),eventAt:now(),eventLabel:'Updated',data:{files:{}}};await this.limited('projects',await required().from('vistralo_projects').insert({id,owner_id:account.user_id,document:p}));return p;}
+  async create(input:CreateProjectInput){const account=await cloudAccount();await this.guard('projects');const id=uuid();const p:Project={id,name:input.name,type:input.type||(input.source==='web'?'brief':'walkthrough'),source:input.source,url:input.url,status:'draft',access:'private',created:now(),updated:now(),eventAt:now(),eventLabel:'Updated',data:{files:{},...namingData(input)}};await this.limited('projects',await required().from('vistralo_projects').insert({id,owner_id:account.user_id,document:p}));return p;}
   private async save(id:string,mutate:(p:Project)=>Project){const row=await this.row(id);const p=mutate(row.document);p.updated=now();const saved=unwrap(await required().from('vistralo_projects').update({document:p,updated_at:p.updated}).eq('id',id).eq('updated_at',row.updated_at).select('id'));if(!saved.length)throw Error('This project changed in another session. Refresh and try again.');return this.sign(p);}
-  async update(id:string,patch:ProjectPatch){if(patch.access&&patch.access!=='private')throw Error('Use a read-only share link to grant access.');return this.save(id,p=>({...p,...patch,eventLabel:patch.lastOpened?'Updated':'Edited',eventAt:patch.lastOpened?p.eventAt:now()}));}
+  async update(id:string,patch:ProjectPatch){if(patch.access&&patch.access!=='private')throw Error('Use a read-only share link to grant access.');return this.save(id,p=>({...p,...patch,data:renamed(p,patch),eventLabel:patch.lastOpened?'Updated':'Edited',eventAt:patch.lastOpened?p.eventAt:now()}));}
   // The copy gets its own files: each object is copied inside storage into the new project's folder
   // (nothing passes through the browser), and every stored path is rewritten to point there.
   // If any step fails, the copied objects and the new project are removed again.
@@ -247,7 +252,7 @@ export class CloudAdapter implements WorkspaceAdapter {
     const original=await this.row(id);const doc=original.document;
     if(['uploading','queued','processing'].includes(doc.status))throw Error('Wait for this project to finish uploading or processing, then duplicate it.');
     if(doc.trashed)throw Error('Restore this project before duplicating it.');
-    const next=await this.create({name:(doc.name+' (copy)').slice(0,120),source:doc.source,type:doc.type,url:doc.url});
+    const next=await this.create({name:(doc.name+' (copy)').slice(0,120),source:doc.source,type:doc.type,url:doc.url,autoName:false});
     const from=projectPrefix(original.owner_id,id),to=projectPrefix(original.owner_id,next.id);
     const copied:string[]=[];
     try{
@@ -255,7 +260,7 @@ export class CloudAdapter implements WorkspaceAdapter {
         const target=to+file.slice(from.length);
         unwrap(await required().storage.from('vistralo-media').copy(file,target));copied.push(target);
       }
-      return await this.save(next.id,p=>({...remapPaths({...doc,data:structuredClone(doc.data)},from,to),id:next.id,name:p.name,created:p.created,access:'private',collaborators:undefined,pinned:false,lastOpened:undefined,trashed:false,trashedAt:undefined,progress:undefined,error:doc.status==='failed'?doc.error:undefined,eventLabel:'Updated',eventAt:now()}));
+      return await this.save(next.id,p=>({...remapPaths({...doc,data:structuredClone({...doc.data,autoName:false})},from,to),id:next.id,name:p.name,created:p.created,access:'private',collaborators:undefined,pinned:false,lastOpened:undefined,trashed:false,trashedAt:undefined,progress:undefined,error:doc.status==='failed'?doc.error:undefined,eventLabel:'Updated',eventAt:now()}));
     }catch(error){
       if(copied.length)await required().storage.from('vistralo-media').remove(copied).catch(()=>{});
       await this.save(next.id,p=>({...p,trashed:true,trashedAt:now()})).catch(()=>{});

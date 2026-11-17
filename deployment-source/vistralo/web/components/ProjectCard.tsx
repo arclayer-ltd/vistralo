@@ -64,7 +64,7 @@ function faviconSource(project: Project): string | undefined {
   return webDestination(value);
 }
 
-function SourceIcon({ project }: { project: Project }) {
+function SourceIcon({ project, size = 16 }: { project: Project; size?: number }) {
   const source = faviconSource(project);
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [source]);
@@ -72,8 +72,8 @@ function SourceIcon({ project }: { project: Project }) {
     <img
       className="source-favicon"
       src={source}
-      width={16}
-      height={16}
+      width={size}
+      height={size}
       alt=""
       loading="lazy"
       decoding="async"
@@ -89,7 +89,7 @@ function SourceIcon({ project }: { project: Project }) {
             ? "video"
             : "upload"
       }
-      size={16}
+      size={size}
     />
   );
 }
@@ -107,6 +107,26 @@ export function StatusBadge({ project: p }: { project: Project }) {
       {stall ? "Stalled" : statusText(p)}
     </span>
   );
+}
+
+/**
+ * The line under a title that tells two similar projects apart: where it came from, and the
+ * exact day and time it was made (the edge print above says only "2 days ago").
+ */
+export function subtitle(p: Project, locale?: string) {
+  const made = new Date(p.created || p.eventAt);
+  const when = Number.isNaN(made.getTime())
+    ? ""
+    : new Intl.DateTimeFormat(locale, {
+        month: "short",
+        day: "numeric",
+        ...(made.getFullYear() !== new Date().getFullYear() ? { year: "numeric" as const } : {}),
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(made);
+  const source = sourceText(p);
+  // A brief named for its site would say the site twice.
+  return [source === p.name ? "" : source, when].filter(Boolean).join(" · ");
 }
 
 /** What a frame says when there is no picture to show yet. */
@@ -144,8 +164,9 @@ export function Thumbnail({ project: p, src }: { project: Project; src?: string 
     Number.isFinite(p.duration) && (p.duration || 0) > 0
       ? Math.floor(p.duration!)
       : 0;
-  const hasImage =
-    !!image && !failed && !working && p.status !== "uploading" && p.status !== "failed";
+  // A picture the project already has is shown in every state, so a card that is working,
+  // stalled or failed is still recognisable; its state is printed under the frame.
+  const hasImage = !!image && !failed;
   const rejected = p.status === "failed";
   const label = blankLabel(p, failed);
   return (
@@ -189,25 +210,24 @@ export function Thumbnail({ project: p, src }: { project: Project; src?: string 
           />
         </picture>
       ) : (
+        // No picture yet: the frame still says what the project is (its site or where it came
+        // from), and under that what is happening to it.
         <div className="frame-blank" aria-hidden="true">
-          {p.type === "brief" && !working && !rejected ? (
-            <strong className="frame-host">{sourceText(p)}</strong>
-          ) : (
+          {rejected || stall || working || p.status === "uploading" ? (
             <Icon
               name={
                 rejected || stall
                   ? "warning"
                   : p.status === "uploading"
                     ? "upload"
-                    : working
-                      ? "clock"
-                      : p.source === "screen"
-                        ? "video"
-                        : "upload"
+                    : "clock"
               }
               size={24}
             />
+          ) : (
+            <SourceIcon project={p} size={24} />
           )}
+          <strong className="frame-host">{sourceText(p)}</strong>
           {label && <span>{label}</span>}
         </div>
       )}
@@ -457,6 +477,7 @@ export function ProjectCard({
             {menu && <Menu items={actions} onClose={() => setMenu(false)} />}
           </div>
         </div>
+        <p className="card-subtitle">{subtitle(p, locale)}</p>
         {p.error && (
           <p className="card-detail error-reason" title={p.error}>
             {p.error}

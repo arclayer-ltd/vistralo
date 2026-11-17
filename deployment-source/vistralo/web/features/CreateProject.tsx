@@ -84,6 +84,7 @@ export function CreateProject({
     popOutControls,
     stopCaptureTracks,
     chooseSource,
+    sharedTitle,
   } = rec;
   const { controller, created, busy, progress, building, save } = useSaveProject({
     source,
@@ -92,6 +93,7 @@ export function CreateProject({
     adapter,
     name,
     url,
+    sharedTitle,
     file,
     shots,
     mobile,
