@@ -217,11 +217,14 @@ test("Chrome's floating sharing bar is found in a whole-screen frame, and nothin
     paint((x, y, v) => px.fill(v, ((y - band.top) * W + x) * 4, ((y - band.top) * W + x) * 4 + 3));
     return px;
   };
-  // The bar: a one-pixel border at y 948, white inside, 550 pixels wide around the centre.
-  const withBar = frame((set) => {
-    for (let x = 686; x <= 1236; x++) set(x, 948, 229);
-    for (let y = 949; y < 1012; y++) for (let x = 686; x <= 1236; x++) set(x, y, 255);
-  });
+  // The bar as Chrome draws it at 125 %: a border at y 948, white inside, a bottom border at
+  // 1010-1013 and the page showing between it and the taskbar; 550 pixels wide around the centre.
+  const box = (set, x0, x1, y0, y1, bottom = true) => {
+    for (let x = x0; x <= x1; x++) set(x, y0, 229);
+    for (let y = y0 + 1; y < y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 255);
+    if (bottom) for (let y = y1; y < y1 + 4; y++) for (let x = x0; x <= x1; x++) set(x, y, 210);
+  };
+  const withBar = frame((set) => box(set, 686, 1236, 948, 1010));
   const found = bar.findSharingBar(withBar, W, band.top, band.rows, geo);
   assert.ok(found, 'the bar is found');
   assert.ok(found.x <= 686 && found.x + found.width > 1236, 'it covers the bar from side to side');
@@ -237,6 +240,11 @@ test("Chrome's floating sharing bar is found in a whole-screen frame, and nothin
     for (let x = 100; x <= 650; x++) set(x, 948, 229);
   });
   assert.equal(bar.findSharingBar(offCentre, W, band.top, band.rows, geo), null, 'a box at the side is not the bar');
+  // A page's own centred toast or banner near the bottom is not painted out.
+  const snackbar = frame((set) => box(set, 660, 1260, 930, 985));
+  assert.equal(bar.findSharingBar(snackbar, W, band.top, band.rows, geo), null, 'a toast above the taskbar is not the bar');
+  const banner = frame((set) => box(set, 686, 1236, 948, 1020, false));
+  assert.equal(bar.findSharingBar(banner, W, band.top, band.rows, geo), null, 'a banner running down to the taskbar is not the bar');
   // The patch is painted in the commonest colour just above it, not a stretched row of edges.
   const row = new Uint8ClampedArray(40 * 4).fill(250);
   for (let i = 0; i < 6; i++) row.set([20, 20, 20, 255], i * 4 * 6);

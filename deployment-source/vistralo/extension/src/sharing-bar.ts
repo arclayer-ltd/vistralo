@@ -27,9 +27,10 @@ export function searchBand(geo: ScreenGeometry) {
 }
 
 /**
- * Finds the bar in a strip of RGBA pixels covering `searchBand`. The bar's top edge is a
- * horizontal line of one colour across the middle of the screen, unlike the rows just above it;
- * it is centred, a few hundred points wide, and the bar runs down to the end of the work area.
+ * Finds the bar in a strip of RGBA pixels covering `searchBand`. Chrome draws it at a fixed place:
+ * its top edge about 58 points above the end of the work area and its bottom border 5 to 8 points
+ * above it, centred and a few hundred points wide. Both edges must be there, each a line of one
+ * colour unlike its neighbours, so a page's own toast or banner near the bottom is left alone.
  */
 export function findSharingBar(pixels: ArrayLike<number>, width: number, top: number, rows: number, geo: ScreenGeometry): BarRect | null {
   const lum = (x: number, y: number) => {
@@ -37,10 +38,28 @@ export function findSharingBar(pixels: ArrayLike<number>, width: number, top: nu
     return (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
   };
   const centre = Math.round(width / 2);
+  // The bar's bottom border: a row, 5 to 8 points above the work area's end, that differs from the
+  // rows above it all along the bar.
+  const bottomBorder = (left: number, right: number) => {
+    const from = Math.round(geo.workBottom - 11 * geo.scale);
+    const to = Math.min(top + rows - 1, Math.round(geo.workBottom - 3 * geo.scale));
+    const lift = Math.max(2, Math.round(3 * geo.scale));
+    for (let y = from; y <= to; y++) {
+      let differs = 0;
+      let samples = 0;
+      for (let x = left + 4; x <= right - 4; x += 8) {
+        samples++;
+        if (Math.abs(lum(x, y) - lum(x, y - lift)) > 8) differs++;
+      }
+      if (samples && differs / samples >= 0.8) return true;
+    }
+    return false;
+  };
   const half = Math.round(150 * geo.scale);
   if (centre - half < 1 || centre + half >= width - 1) return null;
-  const lastEdge = top + rows - Math.round(30 * geo.scale);
-  for (let y = top + 3; y < lastEdge; y++) {
+  const firstEdge = Math.max(top + 3, Math.round(geo.workBottom - 64 * geo.scale));
+  const lastEdge = Math.min(top + rows, Math.round(geo.workBottom - 52 * geo.scale));
+  for (let y = firstEdge; y <= lastEdge; y++) {
     let min = 255;
     let max = 0;
     let sum = 0;
@@ -69,6 +88,7 @@ export function findSharingBar(pixels: ArrayLike<number>, width: number, top: nu
     if (span < 250 * geo.scale || span > 900 * geo.scale) continue;
     // Centred, give or take a window that covers one end of it.
     if (Math.abs((left + right) / 2 - centre) > 40 * geo.scale) continue;
+    if (!bottomBorder(left, right)) continue;
     // A little wider than the edge found: its shadow, or a sliver beside a window covering one end.
     const margin = Math.round(12 * geo.scale);
     const x = Math.max(0, left - margin);
