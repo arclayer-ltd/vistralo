@@ -11,7 +11,7 @@ Every page the blueprint lists now has a draft. None is approved, none is publis
 | Page | File | Open fields | What mainly holds it up |
 | --- | --- | --- | --- |
 | Service terms | `TERMS-DRAFT.md` | 21 | Warranties, liability and governing law are left wholly to counsel; confirmed plans; the account deletion process |
-| Privacy notice | `PRIVACY-DRAFT.md` | 22 | Hosting countries, retention periods, lawful bases, transfer safeguards |
+| Privacy notice | `PRIVACY-DRAFT.md` | 24 | Hosting countries, retention periods, lawful bases, transfer safeguards; for the Chrome extension section (17 November 2026), confirming who may view customer recordings |
 | Browser storage notice | `STORAGE-NOTICE-DRAFT.md` | 2 | What Paddle's checkout stores in the browser |
 | Refund policy | `REFUND-POLICY-DRAFT.md` | 14 | The refund window and renewal rule, which are the operator's decision; the consumer withdrawal right |
 | Acceptable use policy | `ACCEPTABLE-USE-DRAFT.md` | 7 | The appeal process; duties to report content |
@@ -43,6 +43,7 @@ Three facts in these drafts are true of the code but have to be confirmed in pro
 | Voice | The approved script text is sent to OpenAI text-to-speech; the returned audio is stored with the project | OpenAI terms, data location and retention; disclosure that the voice is AI-generated |
 | Provider keys | Entered by the owner, sealed in the browser to the worker's public key, stored only as ciphertext in `vistralo_provider_settings` | Key rotation and deletion when an account closes |
 | Operational data | Vercel and Supabase request logs; the worker's systemd journal on the VPS | Inventory actual logs and retention; avoid claiming logs contain no personal data |
+| Chrome extension (17 November 2026) | Recordings, the recorded page's title and address, and recording choices, in the extension's IndexedDB and chrome.storage on the user's computer; handed to app.vistralo.com in the same browser only when the user saves, then uploaded like any recording. No account, token, analytics or network requests of its own | The Chrome Web Store needs a public privacy policy with this section and a Limited Use statement; see `extension/store/SUBMIT.md` |
 | Payments (built, switched off; see `docs/BILLING.md`) | Paddle is the merchant of record and holds card and billing details; Vistralo stores only the Paddle customer and subscription IDs, plan, status and dates in `vistralo_billing_customers` and `vistralo_billing_subscriptions`, and a ledger of webhook event IDs. Checkout loads Paddle.js and a Paddle frame in the app, and passes the account's email and ID to Paddle | Paddle's role and entity, what Paddle.js stores in the browser, transfer mechanism, how long billing records are kept after an account closes |
 
 Do not launch public multi-user signups based on these draft notices. No analytics or advertising SDK was found in the inspected source; reassess when a marketing site, telemetry or payment service is added. “No sale/share” and “no model training” are not legal statements until all provider terms and actual operations have been checked.
