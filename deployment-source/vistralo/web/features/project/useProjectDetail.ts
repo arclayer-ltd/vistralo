@@ -10,6 +10,17 @@ import { buildClipPlan, errorMessage, validateVideo } from "../flow-utils";
 import { downloadAgentKit } from "../../agent-kit";
 import { clip } from "./clips";
 import type { Clip } from "./clips";
+import { clearRecordingIf, recordingFor, recoverRecording, type WaitingRecording } from "../recording-store";
+import { uploadRunning } from "../../upload-lock";
+
+/** A recording kept in this browser that is (or may be) this project's unsaved source. */
+export interface WaitingSource {
+  recording: WaitingRecording;
+  /** "linked": saving into this project started here; "likely": an older version kept it with no project named. */
+  match: "linked" | "likely";
+  /** Another tab is uploading it now. */
+  elsewhere: boolean;
+}
 
 export type ProjectAction = (
   label: string,
@@ -40,13 +51,15 @@ export function useProjectDetail(
     [durationError, setDurationError] = useState("");
   const [clips, setClips] = useState<Clip[]>([clip()]),
     [planDirty, setPlanDirty] = useState(false),
-    [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+    [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null),
+    [waiting, setWaiting] = useState<WaitingSource | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState(initial.url || ""),
     [mediaError, setMediaError] = useState("");
   const dirtyBrief = useRef(false),
     dirtyScript = useRef(false),
     dirtyPlan = useRef(false),
     uploadController = useRef<AbortController | null>(null),
+    resumed = useRef(false),
     polling = useRef(false),
     live = useRef(false),
     version = useRef(0);
@@ -112,6 +125,31 @@ export function useProjectDetail(
   useEffect(() => {
     if (info && initial.updated !== info.project.updated) void refresh();
   }, [initial.updated]);
+  // A recording whose upload stopped (its page closed, the computer slept) is still kept in this
+  // browser. Find it, and carry on with the upload when saving into this project started here.
+  useEffect(() => {
+    if (adapter.mode !== "cloud" || !adapter.capabilities.upload || uploadProgress || loading) return;
+    let stop = false;
+    void (async () => {
+      const recording = await recoverRecording().catch(() => null);
+      const match = recordingFor(recording, project);
+      if (stop) return;
+      if (!recording || !match) {
+        setWaiting(null);
+        return;
+      }
+      const elsewhere = await uploadRunning(project.id);
+      if (stop) return;
+      setWaiting({ recording, match, elsewhere });
+      if (match === "linked" && !elsewhere && !resumed.current) {
+        resumed.current = true;
+        void uploadVideo(recording.file, recording);
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [project.id, project.status, project.video, project.trashed, adapter, !!uploadProgress, loading]);
   useEffect(() => {
     if (!active) return;
     let stop = false;
@@ -261,7 +299,8 @@ export function useProjectDetail(
     );
   }
 
-  async function uploadVideo(file: File) {
+  /** Uploads a chosen file, or the recording kept in this browser (which is then cleared). */
+  async function uploadVideo(file: File, kept?: WaitingRecording) {
     await action(
       "Uploading",
       async () => {
@@ -271,7 +310,12 @@ export function useProjectDetail(
           await adapter.upload(project.id, file, {
             signal: uploadController.current.signal,
             onProgress: setUploadProgress,
+            ...(kept ? { voice: kept.microphone ? ("microphone" as const) : ("original" as const) } : {}),
           });
+          if (kept) {
+            await clearRecordingIf(kept.created).catch(() => {});
+            setWaiting(null);
+          }
           dirtyPlan.current = false;
           setPlanDirty(false);
         } finally {
@@ -326,6 +370,7 @@ export function useProjectDetail(
     clips,
     setPlanDirty,
     uploadProgress,
+    waiting,
     websiteUrl,
     setWebsiteUrl,
     mediaError,
