@@ -4,6 +4,37 @@ interface StagedRecording {
   name: string;
   created: string;
   microphone?: boolean;
+  /** The project this recording is being saved into, once saving has started. */
+  project?: string;
+}
+
+/** A recording that is waiting in this browser, not yet saved to Vistralo. */
+export interface WaitingRecording {
+  file: File;
+  microphone: boolean;
+  /** When the recording was put here. */
+  created: string;
+  /** The project it is being saved into; absent when saving never started, or it was put here by an older version. */
+  project?: string;
+}
+
+/** How long before its project was made a recording put here by an older version (with no project named) may still be its source. */
+const UNLINKED_MATCH_MS = 24 * 60 * 60_000;
+
+/**
+ * Whether a waiting recording is the source of this project. A recording that names its project
+ * belongs only to that one. One that names none (an older version put it here) is offered to a
+ * screen recording made after it, with no video yet, within a day; it is offered, never uploaded
+ * on its own, because the match is a guess.
+ */
+export function recordingFor(
+  waiting: Pick<WaitingRecording, "created" | "project"> | null,
+  project: { id: string; source: string; created: string; video?: string; trashed?: boolean },
+): "linked" | "likely" | null {
+  if (!waiting || project.trashed || project.video || project.source !== "screen") return null;
+  if (waiting.project) return waiting.project === project.id ? "linked" : null;
+  const gap = Date.parse(project.created) - Date.parse(waiting.created);
+  return gap >= -60_000 && gap <= UNLINKED_MATCH_MS ? "likely" : null;
 }
 
 function database(): Promise<IDBDatabase> {
@@ -57,10 +88,7 @@ export async function stageRecording(
   );
 }
 
-export async function recoverRecording(): Promise<{
-  file: File;
-  microphone: boolean;
-} | null> {
+export async function recoverRecording(): Promise<WaitingRecording | null> {
   const item = await transaction<StagedRecording | undefined>(
     "readonly",
     (store) => store.get("pending"),
@@ -72,8 +100,27 @@ export async function recoverRecording(): Promise<{
           lastModified: new Date(item.created).getTime(),
         }),
         microphone: item.microphone === true,
+        created: item.created,
+        ...(item.project ? { project: item.project } : {}),
       }
     : null;
+}
+
+/**
+ * Notes which project the waiting recording is being saved into, so the project's page can
+ * resume the upload if this one stops (the tab closed, the computer slept, the network dropped).
+ */
+export async function linkRecording(project: string, file: Blob): Promise<void> {
+  const item = await transaction<StagedRecording | undefined>("readonly", (store) => store.get("pending"));
+  // Only the copy of the recording being saved; a different one waiting here keeps no project.
+  if (!item || item.project === project || item.blob.size !== file.size) return;
+  await transaction("readwrite", (store) => store.put({ ...item, project } satisfies StagedRecording));
+}
+
+/** Clears the waiting recording, but only if it is still the one that was saved. */
+export async function clearRecordingIf(created: string): Promise<void> {
+  const item = await transaction<StagedRecording | undefined>("readonly", (store) => store.get("pending"));
+  if (item?.created === created) await clearRecording();
 }
 
 export async function clearRecording(): Promise<void> {

@@ -4,6 +4,7 @@ import { uuid } from './id';
 import { walkthroughScriptEdit, namingData, renamed } from './features/flow-utils';
 import { filesToCopy, projectPrefix, remapPaths } from './features/duplicate';
 import { abortIfNeeded, checksum } from './checksum';
+import { backOnline, withUploadLock } from './upload-lock';
 import { posterFrame } from './poster';
 import { billingConfig } from './billing/config';
 import { setRetention } from './retention';
@@ -315,7 +316,7 @@ export class CloudAdapter implements WorkspaceAdapter {
   }
   async readText(id:string,file:string){await this.row(id);const data=unwrap(await required().storage.from('vistralo-media').download(file));return data.text();}
   // TUS against the direct storage host: 6 MB chunks, each retried from the server's offset, so a dropped connection costs one chunk.
-  private async resumable(target:string,file:File,resumeKey:string,options:UploadOptions){
+  private async resumable(id:string,target:string,file:File,resumeKey:string,options:UploadOptions){
     const endpoint=storageEndpoint();
     const headers=async()=>{const {data}=await required().auth.getSession();const token=data.session?.access_token;if(!token)throw Error('Sign in to Vistralo.');return {authorization:`Bearer ${token}`,apikey:VISTRALO_SUPABASE_KEY,'tus-resumable':'1.0.0'};};
     const reason=async(r:Response)=>{const text=await r.text().catch(()=>'');try{return JSON.parse(text).message||text;}catch{return text||`Upload failed (${r.status}).`;}};
@@ -329,7 +330,10 @@ export class CloudAdapter implements WorkspaceAdapter {
       location=new URL(r.headers.get('location')||'',endpoint).href;offset=0;
       localStorage.setItem(resumeKey,JSON.stringify({location,target}));
     }
-    let failures=0;
+    let failures=0,beat=0;
+    // About once a minute the project records how far the upload got, so its page (in any tab) shows
+    // real progress, and an upload whose page closed is seen to have stopped.
+    const heartbeat=()=>{if(Date.now()-beat<60_000)return;beat=Date.now();const percent=Math.floor(offset/file.size*100);void this.save(id,p=>p.status==='uploading'?{...p,progress:percent}:p).catch(()=>{});};
     while(offset<file.size){
       abortIfNeeded(options.signal);
       options.onProgress?.({phase:'uploading',percent:Math.floor(offset/file.size*100),uploaded:offset,total:file.size});
@@ -337,19 +341,25 @@ export class CloudAdapter implements WorkspaceAdapter {
       try{r=await fetch(location,{method:'PATCH',headers:{...await headers(),'upload-offset':String(offset),'content-type':'application/offset+octet-stream'},body:file.slice(offset,offset+UPLOAD_CHUNK),signal:options.signal});}
       catch(e){
         if((e as Error).name==='AbortError')throw e;
-        if(++failures>6)throw Error('The connection keeps dropping. Select the same file again to resume from where it stopped.');
-        await new Promise(done=>setTimeout(done,1000*2**failures));
+        // Offline is waited out without counting; a connection that keeps failing while online stops after about 15 minutes.
+        if(typeof navigator!=='undefined'&&navigator.onLine===false){await backOnline(options.signal);failures=0;}
+        else{if(++failures>12)throw Error('The connection keeps dropping. Open this project again to carry on from where it stopped.');
+          await new Promise(done=>setTimeout(done,Math.min(60_000,1000*2**failures)));}
         const resumed=await serverOffset(location).catch(()=>-1);if(resumed>=0)offset=resumed;
         continue;
       }
       if(r.status===409){const resumed=await serverOffset(location);if(resumed<0)throw Error(await reason(r));offset=resumed;continue;}
       if(r.status!==204)throw Error(await reason(r));
-      offset=Number(r.headers.get('upload-offset'));failures=0;
+      offset=Number(r.headers.get('upload-offset'));failures=0;heartbeat();
     }
     options.onProgress?.({phase:'uploading',percent:100,uploaded:file.size,total:file.size});
     localStorage.removeItem(resumeKey);
   }
   async upload(id:string,file:File,options:UploadOptions={}){
+    // One upload per project at a time, so a project's page never starts a second copy of a running one.
+    return withUploadLock(id,()=>this.uploadNow(id,file,options));
+  }
+  private async uploadNow(id:string,file:File,options:UploadOptions){
     if(!file.size)throw Error('The selected file is empty.');
     if(file.size>MAX_UPLOAD)throw Error('This file is larger than 50 GB, the workspace upload limit.');
     abortIfNeeded(options.signal);
@@ -363,7 +373,7 @@ export class CloudAdapter implements WorkspaceAdapter {
     const target=typeof stored?.target==='string'&&stored.target.startsWith(`${account.user_id}/${id}/`)?stored.target:`${account.user_id}/${id}/${uuid()}.${ext}`;
     await this.save(id,p=>({...p,status:'uploading',progress:0}));options.onProgress?.({phase:'uploading',percent:0});
     try {
-      await this.resumable(target,file,resumeKey,options);
+      await this.resumable(id,target,file,resumeKey,options);
       const spoken=options.voice==='microphone';
       await this.save(id,p=>({...p,status:'draft',progress:undefined,error:undefined,video:target,duration:undefined,eventLabel:spoken?'Recorded':'Uploaded',eventAt:now(),data:{...p.data,video:target,output:null,editPlan:null,sourceMaster:null,narratedVideo:null,walkthroughVideo:null,captions:null,script:null,scriptParts:null,scriptError:null,mediaInfo:null,sourceSha256:digest,microphone:spoken?true:p.data.microphone,files:{...p.data.files,[target]:{size:file.size,mime:file.type}}}}));
       if(['mp4','webm','mov','mkv'].includes(ext||''))await this.poster(id,file).catch(()=>{});

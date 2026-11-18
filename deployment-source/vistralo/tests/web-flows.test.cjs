@@ -102,3 +102,80 @@ test('reviewed script edits refuse a changed screen count and over-long parts', 
   assert.throws(() => walkthroughScriptEdit(draft, [{text:''},{text:''}], 'y'.repeat(STOP_TEXT_LIMIT + 1)), /closing is longer/);
   assert.doesNotThrow(() => walkthroughScriptEdit(draft, [{text:'x'.repeat(STOP_TEXT_LIMIT)},{text:null}], ''));
 });
+
+// A tiny IndexedDB: one object store, each request completing its transaction on the next microtask.
+function memoryIndexedDB() {
+  const data = new Map();
+  const db = {close(){}, transaction(){
+    const tx = {objectStore(){
+      const request = run => { const r = {result:run()}; queueMicrotask(() => tx.oncomplete && tx.oncomplete()); return r; };
+      return {get:key => request(() => data.get(key)), put:value => request(() => { data.set(value.key, value); }), delete:key => request(() => { data.delete(key); })};
+    }};
+    return tx;
+  }};
+  return {data, indexedDB:{open(){ const request = {result:db}; queueMicrotask(() => request.onsuccess()); return request; }}};
+}
+
+test('a recording kept in this browser remembers the project it is being saved into, and only its own copy is linked',async()=>{
+  const {data, indexedDB} = memoryIndexedDB();
+  const {stageRecording, linkRecording, recoverRecording, clearRecordingIf} = load('recording-store',{indexedDB,queueMicrotask});
+  const take = new File(['eight hours of screen'],'take.webm',{type:'video/webm'});
+  await stageRecording(take);
+  // A different file (not the kept copy) never claims the waiting recording.
+  await linkRecording('p-other', new File(['x'],'other.webm'));
+  assert.equal((await recoverRecording()).project, undefined);
+  await linkRecording('p1', take);
+  const waiting = await recoverRecording();
+  assert.equal(waiting.project, 'p1');
+  assert.equal(waiting.file.size, take.size);
+  // Clearing names the recording it saved, so a newer take kept meanwhile survives.
+  await clearRecordingIf('2000-01-01T00:00:00.000Z');
+  assert.ok(data.has('pending'));
+  await clearRecordingIf(waiting.created);
+  assert.equal(data.has('pending'), false);
+});
+
+test('a waiting recording is matched to its project: surely when linked, as a guess when an older version kept it',()=>{
+  const {recordingFor} = load('recording-store',{indexedDB:{},queueMicrotask});
+  const project = {id:'p1', source:'screen', created:'2026-11-18T05:48:59.908Z'};
+  assert.equal(recordingFor({created:'2026-11-18T05:48:10.000Z', project:'p1'}, project), 'linked');
+  assert.equal(recordingFor({created:'2026-11-18T05:48:10.000Z', project:'p2'}, project), null);
+  // Kept by an older version with no project named: offered to a screen recording made after it, within a day.
+  assert.equal(recordingFor({created:'2026-11-18T05:48:10.000Z'}, project), 'likely');
+  assert.equal(recordingFor({created:'2026-11-16T05:48:10.000Z'}, project), null);
+  assert.equal(recordingFor({created:'2026-11-18T07:00:00.000Z'}, project), null);
+  // Once the project has its video, or for an upload or a website, nothing is offered.
+  for (const other of [{...project, video:'u/p1/v.webm'}, {...project, source:'upload'}, {...project, trashed:true}])
+    assert.equal(recordingFor({created:'2026-11-18T05:48:10.000Z', project:'p1'}, other), null);
+  assert.equal(recordingFor(null, project), null);
+});
+
+test('one upload per project at a time across tabs, and an offline upload waits for the network',async()=>{
+  const held = new Set();
+  const locks = {
+    async request(name, options, run){ if (held.has(name)) return run(null); held.add(name); try { return await run({name}); } finally { held.delete(name); } },
+    async query(){ return {held:[...held].map(name => ({name}))}; },
+  };
+  const listeners = {};
+  const window = {addEventListener:(type, fn) => { listeners[type] = fn; }, removeEventListener:type => { delete listeners[type]; }};
+  const navigator = {locks, onLine:true};
+  const {withUploadLock, uploadRunning, backOnline} = load('../upload-lock',{navigator,window,DOMException});
+  let inside;
+  const first = withUploadLock('p1', async () => { inside = await uploadRunning('p1'); return 'saved'; });
+  await assert.rejects(withUploadLock('p1', async () => 'second'), /already uploading in another tab/);
+  assert.equal(await first, 'saved');
+  assert.equal(inside, true);
+  assert.equal(await uploadRunning('p1'), false);
+  navigator.onLine = false;
+  let resolved = false;
+  const waiting = backOnline().then(() => { resolved = true; });
+  await new Promise(done => setTimeout(done, 5));
+  assert.equal(resolved, false);
+  listeners.online();
+  await waiting;
+  assert.equal(resolved, true);
+  const controller = new AbortController();
+  const paused = backOnline(controller.signal);
+  controller.abort();
+  await assert.rejects(paused, /Upload paused/);
+});

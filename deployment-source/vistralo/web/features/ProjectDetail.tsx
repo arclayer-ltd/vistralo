@@ -10,6 +10,7 @@ import { WalkthroughScript, awaitingReview } from "./project/WalkthroughScript";
 import { NextStep, ProjectHeader } from "./project/ProjectHeader";
 import { ShareFirst } from "./project/ShareFirst";
 import { StalledNotice } from "./project/StalledNotice";
+import { WaitingNotice } from "./project/WaitingNotice";
 import { DeletionNote } from "../components/DeletionNote";
 import { stalled } from "../utils";
 import { canAddAiWalkthrough } from "./project/AiWalkthroughDialog";
@@ -72,6 +73,7 @@ export function ProjectDetail({
     clips,
     setPlanDirty,
     uploadProgress,
+    waiting,
     websiteUrl,
     setWebsiteUrl,
     mediaError,
@@ -255,7 +257,15 @@ export function ProjectDetail({
           onAddAi={addAi}
         />
       )}
-      {stall && (
+      {waiting && !uploadProgress && (
+        <WaitingNotice
+          waiting={waiting}
+          busy={!!busy}
+          resume={() => void uploadVideo(waiting.recording.file, waiting.recording)}
+        />
+      )}
+      {/* While the recording waits here, resuming it replaces choosing the file again. */}
+      {stall && !(waiting && stall.action === "upload") && (
         <StalledNotice
           project={project}
           stall={stall}

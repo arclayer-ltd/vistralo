@@ -5,7 +5,7 @@ import type {
   UploadProgress,
   WorkspaceAdapter,
 } from "../../contracts";
-import { clearRecording } from "../recording-store";
+import { clearRecording, linkRecording } from "../recording-store";
 import { automaticName, errorMessage, publicWebsite, validateVideo } from "../flow-utils";
 import type { CreateFlow } from "../create-flows";
 import { screenshotsVideo } from "../../slideshow";
@@ -143,6 +143,9 @@ export function useSaveProject({
             : "Recording the website. You can leave this page while it runs.",
         );
       } else {
+        // If this page closes before the upload ends, the project's page finds the copy kept in
+        // this browser and carries on from where the upload stopped.
+        if (source === "screen") await linkRecording(project.id, media!).catch(() => {});
         controller.current = new AbortController();
         const uploaded = await adapter.upload(project.id, media!, {
           signal: controller.current.signal,
